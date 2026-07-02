@@ -231,10 +231,10 @@ begin
     update public.places set reporters = 0, status = 0 where id = v_place_id;
   end if;
 
-  select exists(
+select exists(
     select 1 from public.reports
     where user_id = v_uid and place_id = v_place_id
-      and created_at::date = current_date
+      and public._report_day(created_at) = public._report_day(now())
   ) into v_already;
 
   if v_already then
