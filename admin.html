@@ -8,7 +8,7 @@
 <style>
   :root{
     --green:#00C48C; --gold:#D4AF37; --bg:#F0F4F8; --card:#fff;
-    --text:#0F172A; --sub:#64748B; --border:#E2E8F0; --danger:#EF4444;
+    --text:#0F172A; --sub:#64748B; --border:#E2E8F0; --danger:#EF4444; --neutral:#94A3B8;
   }
   *{box-sizing:border-box;}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);}
@@ -21,24 +21,29 @@
   .btn-primary:disabled{opacity:.5;cursor:not-allowed;}
   .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text);}
   .btn-danger{background:transparent;border:1px solid var(--danger);color:var(--danger);}
+  .btn-sm{padding:6px 10px;font-size:12px;border-radius:8px;}
   input,select,textarea{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:9px;font-size:14px;font-family:inherit;margin-top:4px;}
   label{font-size:12px;font-weight:700;color:var(--sub);display:block;margin-top:10px;}
   .row{display:flex;gap:8px;}
   .row > *{flex:1;}
-  .result{display:flex;align-items:center;justify-content:space-between;padding:10px 4px;border-bottom:1px solid var(--border);cursor:pointer;}
+  .result{display:flex;align-items:center;justify-content:space-between;padding:10px 4px;border-bottom:1px solid var(--border);cursor:pointer;gap:10px;}
   .result:hover{background:#fafafa;}
   .result:last-child{border-bottom:none;}
   .result-name{font-weight:700;font-size:14px;}
   .result-sub{font-size:12px;color:var(--sub);}
-  .badge-gold{background:var(--gold);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;}
+  .badge-gold{background:var(--gold);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;white-space:nowrap;}
+  .badge-black{background:linear-gradient(135deg,#0A0A0C,#1c1c20);color:var(--gold);border:1px solid rgba(212,175,55,.5);font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;white-space:nowrap;}
+  .badge-neutral{background:var(--neutral);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;white-space:nowrap;}
   .hidden{display:none !important;}
   .msg{font-size:13px;padding:10px 12px;border-radius:9px;margin-bottom:12px;}
   .msg-err{background:#FEF2F2;color:var(--danger);}
   .msg-ok{background:#ECFDF5;color:#047857;}
   .selected-title{font-weight:800;font-size:15px;margin-bottom:2px;}
   .selected-id{font-size:11px;color:var(--sub);font-family:monospace;}
-  .footer-actions{display:flex;gap:8px;margin-top:16px;}
+  .footer-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;}
   .config-note{font-size:12px;color:var(--sub);background:#FFFBEB;border:1px solid #FDE68A;padding:10px 12px;border-radius:10px;}
+  .card-head{display:flex;align-items:center;justify-content:space-between;}
+  .card-head label{margin-top:0;}
 </style>
 </head>
 <body>
@@ -60,11 +65,30 @@
   </div>
 
   <div id="app" class="hidden">
+
+    <div id="sponsorsListCard" class="card">
+      <div class="card-head">
+        <label>Sponsors activos</label>
+        <button id="btnRefreshSponsors" class="btn-ghost btn-sm">↻ Actualizar</button>
+      </div>
+      <div id="sponsorsList" style="margin-top:6px;"></div>
+    </div>
+
     <div class="card">
       <label>Buscar comercio (por nombre o id)</label>
       <div class="row">
         <input id="searchInput" placeholder="ej: Vivero Palermo, o osm-node-123..." />
         <button id="btnSearch" class="btn-primary" style="flex:0 0 auto;">Buscar</button>
+      </div>
+      <div class="row" style="margin-top:6px;">
+        <input id="searchLat" placeholder="Lat centro (opcional)" />
+        <input id="searchLng" placeholder="Lng centro (opcional)" />
+        <input id="searchRadius" placeholder="Radio m (def. 6000)" style="max-width:140px;" />
+      </div>
+      <div class="sub" style="margin:6px 0 0;">
+        La búsqueda revisa primero los sponsors/lugares ya guardados y después el mapa
+        (OpenStreetMap) cerca de ese punto, para que si el comercio ya existe lo edites
+        y lo pises en vez de crear un duplicado.
       </div>
       <div id="results" style="margin-top:10px;"></div>
     </div>
@@ -88,12 +112,13 @@
         <option value="">Sin sponsor (comercio normal)</option>
         <option value="basic">Básico (color custom)</option>
         <option value="premium">Premium (dorado)</option>
+        <option value="black">Black (onyx + dorado, nivel superior a premium)</option>
       </select>
 
       <label>Texto del badge</label>
-      <input id="fBadgeText" placeholder="Socio Qooentum" />
+      <input id="fBadgeText" placeholder="Socio Qooentum (Black usa 'Black' si lo dejás vacío)" />
 
-      <label>Color del badge (solo si tier = básico; premium siempre es dorado)</label>
+      <label>Color del badge (solo si tier = básico; premium y Black usan su color fijo)</label>
       <input id="fBadgeColor" placeholder="#6366F1" />
 
       <label>Promo / cupón</label>
@@ -131,13 +156,36 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const configOk = !SUPABASE_URL.startsWith('TU_') && !SUPABASE_ANON_KEY.startsWith('TU_');
 if (!configOk) document.getElementById('configWarning').classList.remove('hidden');
 
-const supabase = configOk ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+// auth explícito + flowType pkce: evita que un refresh de página reprocese
+// un token viejo que quedó en el hash de la URL y "pierda" la sesión.
+const supabase = configOk ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    flowType: 'pkce',
+    storageKey: 'qooentum-admin-auth',
+  },
+}) : null;
+
+// Mismo centro por defecto que usa la app (Buenos Aires), para las
+// búsquedas contra OpenStreetMap cuando el admin no aclara lat/lng.
+const DEFAULT_CENTER = { lat: -34.6083, lng: -58.3896 };
+
+// Mismos espejos públicos de Overpass que usa app.js, para consultar el
+// mapa "en vivo" y detectar si un comercio ya existe ahí antes de crearlo.
+const OVERPASS_MIRRORS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+];
 
 const $ = id => document.getElementById(id);
 const show = el => el.classList.remove('hidden');
 const hide = el => el.classList.add('hidden');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-let selected = null; // { id, isNew, sponsor }
+let selected = null; // { id, isNew, sponsor, ... }
 
 function showMsg(el, text, kind) {
   el.textContent = text;
@@ -148,67 +196,205 @@ function showMsg(el, text, kind) {
 // ---- Auth ----
 $('btnLogin').addEventListener('click', async () => {
   if (!supabase) return;
-  await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.href } });
+  // redirectTo fijo (sin el hash actual) para no reenviar tokens viejos en el callback.
+  await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: location.origin + location.pathname },
+  });
 });
 $('btnLogout').addEventListener('click', async () => {
   await supabase.auth.signOut();
   location.reload();
 });
 
-async function checkAdminAndInit() {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return;
+// Único punto de entrada para reflejar el estado de sesión en la UI.
+// Se dispara desde onAuthStateChange (que emite el estado actual apenas
+// carga la página, y de nuevo en cada login/logout/refresh de token),
+// así evitamos condiciones de carrera con un chequeo manual en paralelo.
+async function checkAdminAndInit(session) {
+  if (!session) {
+    hide($('app'));
+    hide($('sessionInfo'));
+    hide($('btnLogout'));
+    show($('btnLogin'));
+    return;
+  }
 
   $('sessionInfo').textContent = 'Sesión: ' + session.user.email;
   show($('sessionInfo'));
   show($('btnLogout'));
   hide($('btnLogin'));
+  hide($('loginMsg'));
 
   // aseguramos que exista el profile (mismo flow que get_profile en la app)
   await supabase.rpc('get_profile', { p_email: session.user.email });
 
-  const { error } = await supabase.rpc('admin_search_places', { p_query: '' });
+  const { data, error } = await supabase.rpc('admin_search_places', { p_query: '' });
   if (error) {
+    hide($('app'));
     showMsg($('loginMsg'), 'Tu usuario (' + session.user.email + ') no es admin todavía. Pedile a quien tenga acceso al SQL Editor que corra: update public.profiles set role=\'admin\' where email=\'' + session.user.email + '\';', 'err');
     return;
   }
   show($('app'));
+  renderSponsorsList(data || []);
 }
 
 if (supabase) {
-  supabase.auth.onAuthStateChange((_e, _s) => checkAdminAndInit());
-  checkAdminAndInit();
+  supabase.auth.onAuthStateChange((_event, session) => {
+    checkAdminAndInit(session);
+    // Limpia el #access_token=... del callback de OAuth para que un F5
+    // posterior no intente reprocesar un token ya usado.
+    if (session && location.hash) history.replaceState(null, '', location.pathname + location.search);
+  });
+}
+
+// ---- Lista de sponsors activos (altas) ----
+async function loadSponsorsList() {
+  const { data, error } = await supabase.rpc('admin_search_places', { p_query: '' });
+  if (error) { $('sponsorsList').innerHTML = '<div class="msg msg-err">' + esc(error.message) + '</div>'; return; }
+  renderSponsorsList(data || []);
+}
+$('btnRefreshSponsors').addEventListener('click', loadSponsorsList);
+
+function tierBadge(tier) {
+  if (tier === 'black') return '<span class="badge-black">Black</span>';
+  if (tier === 'premium') return '<span class="badge-gold">Premium</span>';
+  return '<span class="badge-gold" style="background:#6366F1;">Básico</span>';
+}
+
+function renderSponsorsList(allPlaces) {
+  const box = $('sponsorsList');
+  const sponsored = (allPlaces || []).filter(p => p.sponsor);
+  if (!sponsored.length) {
+    box.innerHTML = '<div class="sub" style="padding:8px 4px;">Todavía no hay sponsors cargados. Buscá un comercio abajo para dar de alta el primero.</div>';
+    return;
+  }
+  box.innerHTML = '';
+  sponsored.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'result';
+    row.style.cursor = 'default';
+    row.innerHTML = `
+      <div>
+        <div class="result-name">${esc(p.name)}</div>
+        <div class="result-sub">${esc(p.type || '')} · ${esc(p.id)}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        ${tierBadge(p.sponsor.tier)}
+        <button class="btn-ghost btn-sm sp-edit">Editar</button>
+        <button class="btn-danger btn-sm sp-remove">Dar de baja</button>
+      </div>
+    `;
+    row.querySelector('.sp-edit').addEventListener('click', () => {
+      openEditor({ id: p.id, isNew: false, name: p.name, lat: p.lat, lng: p.lng, type: p.type, cat: p.cat, addr: p.addr, sponsor: p.sponsor });
+    });
+    row.querySelector('.sp-remove').addEventListener('click', async () => {
+      if (!confirm('¿Dar de baja el sponsor de "' + p.name + '"?')) return;
+      const { error } = await supabase.rpc('admin_remove_sponsor', { p_place_id: p.id });
+      if (error) { alert(error.message); return; }
+      loadSponsorsList();
+    });
+    box.appendChild(row);
+  });
+}
+
+// ---- Overpass (mapa en vivo) — para no duplicar comercios que ya están
+// geolocalizados en OSM pero todavía no tienen fila propia en la base ----
+async function overpassFetchMirror(url, query) {
+  const res = await fetch(url, {
+    method: 'POST',
+    body: 'data=' + encodeURIComponent(query),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!res.ok) throw new Error(String(res.status));
+  return res.json();
+}
+async function overpassRate(query) {
+  try { return await Promise.any(OVERPASS_MIRRORS.map(url => overpassFetchMirror(url, query))); }
+  catch (e) { console.warn('[overpass] todos los espejos fallaron', e); return null; }
+}
+const escapeRegex = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+async function overpassSearchByName(query, lat, lng, radiusM) {
+  const r = Math.min(radiusM || 6000, 15000);
+  const safe = escapeRegex(query);
+  const q = `[out:json][timeout:20];
+(
+  node["name"~"${safe}",i](around:${r},${lat},${lng});
+  way["name"~"${safe}",i](around:${r},${lat},${lng});
+);
+out center 30;`;
+  const data = await overpassRate(q);
+  if (!data) return [];
+  return (data.elements || []).map(el => {
+    const elLat = el.lat ?? el.center?.lat ?? null;
+    const elLng = el.lon ?? el.center?.lon ?? null;
+    if (elLat == null || elLng == null) return null;
+    const tags = el.tags || {};
+    const name = tags.name || tags['name:es'];
+    if (!name) return null;
+    return {
+      id: `osm-${el.type}-${el.id}`,
+      name,
+      type: tags.amenity || tags.shop || tags.leisure || 'lugar',
+      addr: [tags['addr:street'], tags['addr:housenumber']].filter(Boolean).join(' ') || tags.address || '',
+      lat: elLat, lng: elLng,
+      sponsor: null,
+    };
+  }).filter(Boolean).slice(0, 20);
 }
 
 // ---- Búsqueda ----
 $('btnSearch').addEventListener('click', doSearch);
 $('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
 
+function renderResultRow(p, badgeHtml) {
+  const row = document.createElement('div');
+  row.className = 'result';
+  row.innerHTML = `
+    <div>
+      <div class="result-name">${esc(p.name)}</div>
+      <div class="result-sub">${esc(p.type || '')} · ${esc(p.id)}</div>
+    </div>
+    ${badgeHtml || ''}
+  `;
+  row.addEventListener('click', () => openEditor({ id: p.id, isNew: false, name: p.name, lat: p.lat, lng: p.lng, type: p.type, cat: p.cat, addr: p.addr, sponsor: p.sponsor || null }));
+  $('results').appendChild(row);
+}
+
 async function doSearch() {
   const q = $('searchInput').value.trim();
   if (!q) return;
-  const { data, error } = await supabase.rpc('admin_search_places', { p_query: q });
   const box = $('results');
+  box.innerHTML = '<div class="sub" style="padding:8px 4px;">Buscando…</div>';
+
+  const { data: dbData, error: dbError } = await supabase.rpc('admin_search_places', { p_query: q });
+  if (dbError) { box.innerHTML = '<div class="msg msg-err">' + esc(dbError.message) + '</div>'; return; }
+
+  const lat = parseFloat($('searchLat').value) || DEFAULT_CENTER.lat;
+  const lng = parseFloat($('searchLng').value) || DEFAULT_CENTER.lng;
+  const radius = parseInt($('searchRadius').value, 10) || 6000;
+
+  let osmData = [];
+  try { osmData = await overpassSearchByName(q, lat, lng, radius); } catch (e) { console.warn(e); }
+
+  const dbIds = new Set((dbData || []).map(p => p.id));
+  const osmOnly = osmData.filter(p => !dbIds.has(p.id));
+
   box.innerHTML = '';
-  if (error) { box.innerHTML = '<div class="msg msg-err">' + error.message + '</div>'; return; }
-  if (!data || !data.length) {
-    box.innerHTML = '<div class="sub" style="padding:8px 4px;">Sin resultados. Si es un lugar nuevo, completá el formulario de abajo a mano.</div>';
+
+  if ((!dbData || !dbData.length) && !osmOnly.length) {
+    box.innerHTML = '<div class="sub" style="padding:8px 4px;">Sin resultados ni en la base ni en el mapa (OSM) cerca de ese punto. Si es un lugar nuevo de verdad, completá el formulario de abajo a mano.</div>';
     openEditor({ id: 'sponsor-' + q.toLowerCase().replace(/[^a-z0-9]+/g, '-'), isNew: true, name: q, sponsor: null });
     return;
   }
-  data.forEach(p => {
-    const row = document.createElement('div');
-    row.className = 'result';
-    row.innerHTML = `
-      <div>
-        <div class="result-name">${p.name}</div>
-        <div class="result-sub">${p.type || ''} · ${p.id}</div>
-      </div>
-      ${p.sponsor ? '<span class="badge-gold">' + (p.sponsor.tier === 'premium' ? 'Premium' : 'Sponsor') + '</span>' : ''}
-    `;
-    row.addEventListener('click', () => openEditor({ id: p.id, isNew: false, name: p.name, lat: p.lat, lng: p.lng, type: p.type, cat: p.cat, addr: p.addr, sponsor: p.sponsor }));
-    box.appendChild(row);
+
+  (dbData || []).forEach(p => {
+    const badge = p.sponsor ? tierBadge(p.sponsor.tier) : '';
+    renderResultRow(p, badge);
   });
+  osmOnly.forEach(p => renderResultRow(p, '<span class="badge-neutral">En el mapa</span>'));
 }
 
 // ---- Editor -----
@@ -216,7 +402,7 @@ function openEditor(place) {
   selected = place;
   hide($('editMsg'));
   $('selName').textContent = place.name || '(nuevo lugar)';
-  $('selId').textContent = place.id;
+  $('selId').textContent = place.id + (place.isNew ? '  ·  se va a crear' : '  ·  ya existe, se va a pisar');
   $('fName').value = place.name || '';
   $('fLat').value = place.lat ?? '';
   $('fLng').value = place.lng ?? '';
@@ -229,6 +415,8 @@ function openEditor(place) {
   $('fWebsite').value = s.website || '';
   $('fLogoUrl').value = s.logo_url || '';
   $('fPhotoUrl').value = s.photo_url || '';
+
+  $('btnRemove').style.display = place.isNew ? 'none' : '';
 
   show($('editCard'));
   $('editCard').scrollIntoView({ behavior: 'smooth' });
@@ -249,6 +437,9 @@ $('btnSave').addEventListener('click', async () => {
     photo_url: $('fPhotoUrl').value || null,
   } : null;
 
+  // p_place_id siempre es el id real (osm-... si ya existe en el mapa, o
+  // sponsor-... solo si es genuinamente nuevo): el RPC hace upsert por ese
+  // id, así que si el comercio ya existe lo pisa en vez de duplicarlo.
   const payload = {
     p_place_id: selected.id,
     p_sponsor: sponsor,
@@ -263,6 +454,7 @@ $('btnSave').addEventListener('click', async () => {
   const { error } = await supabase.rpc('admin_upsert_sponsor', payload);
   if (error) { showMsg($('editMsg'), error.message, 'err'); return; }
   showMsg($('editMsg'), 'Guardado ✅', 'ok');
+  loadSponsorsList();
 });
 
 $('btnRemove').addEventListener('click', async () => {
@@ -271,6 +463,7 @@ $('btnRemove').addEventListener('click', async () => {
   if (error) { showMsg($('editMsg'), error.message, 'err'); return; }
   showMsg($('editMsg'), 'Sponsor quitado ✅', 'ok');
   $('fTier').value = '';
+  loadSponsorsList();
 });
 </script>
 </body>
