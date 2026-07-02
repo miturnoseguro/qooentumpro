@@ -20,6 +20,7 @@ const CONFIG = {
   GPS_ZOOM: 19,
   FOLLOW_ZOOM: 18,
   CHECKIN_RADIUS_M: 150,
+  SPONSOR_PIN_RADIUS_M: 100, // radio para "pinnear" la card de un sponsor Black arriba a la izquierda
   TILE_DEG: 0.0025,
   BBOX_PAD: 0.0012,
   PLACE_CACHE_TTL_MS: 24 * 60 * 60 * 1000,
@@ -59,13 +60,16 @@ const NO_REPORT = { label: 'Sin reportes hoy', sub: 'Sé el primero', color: '#9
 const NO_REPORT_SPONSOR = { label: 'Sin reportes hoy', sub: 'Sé el primero', color: '#A39357' };
 // Devuelve el status a mostrar (color/label) para un lugar, usando el tono especial de "sin reportes" cuando es sponsor premium
 const getStatus = p => {
-  if (!p.reporters || p.reporters===0) return (p.sponsor?.tier === 'premium') ? NO_REPORT_SPONSOR : NO_REPORT;
+  if (!p.reporters || p.reporters===0) return (p.sponsor?.tier === 'premium' || p.sponsor?.tier === 'black') ? NO_REPORT_SPONSOR : NO_REPORT;
   return STATUS_CFG[p.status];
 };
 const WAIT  = ['Sin espera','~5 min','~15 min','+30 min'];
 const TREND = ['↘ Baja','→ Estable','↗ Sube','↗ Sube'];
 // Tono gold fijo para sponsors premium (no depende del badge_color que traiga el comercio) — la marca (verde) se reserva solo para login y link al sitio
 const SPONSOR_GOLD = '#D4AF37';
+// Tier "Black": nivel superior a premium — onyx con hairline dorado en vez de dorado sólido.
+const SPONSOR_BLACK = '#0A0A0C';
+const SPONSOR_BLACK_ACCENT = '#D4AF37';
 const BRAND_GREEN = '#00C48C';
 const VOTE_PTS = [10,10,15,20];
 const LEVEL_TITLES = ['Novato','Explorador','Cazador de Filas','Maestro del Mapa','Leyenda Urbana'];
@@ -122,12 +126,15 @@ let userLat = null, userLng = null, gpsEverReceived = false, followMode = true;
 let mlMap = null, mlReady = false, mlMarkers = {}, mlClusterMarkers = [], mlUserMarker = null;
 let gpsWatchId = null, placeCooldowns = {};
 let currentPopupPlace = null, popupRoot = null;
-let cercaAllPlaces = [], cercaFiltered = [], cercaRadius=2000, cercaCat='all', cercaSearchQ='', cercaSortMode='distance', cercaSortIdx=0, cercaLoading=false;
+let cercaAllPlaces = [], cercaFiltered = [], cercaRadius=1000, cercaCat='all', cercaSearchQ='', cercaSortMode='distance', cercaSortIdx=0, cercaLoading=false;
 let cercaLoaded = false;
 let cercaReqId = 0; // usado para descartar respuestas de cargas viejas (evita el parpadeo al cambiar de radio rápido)
 let cercaCache = {}; // cache de resultados por radio, para no repetir el flash de datos demo al volver a un radio ya visitado
 let rankingData = [], prizesData = SEED_PRIZES.map(p=>({...p}));
 let _markerBatchToken = 0, _buildMarkersTimer = null;
+// Sponsor "Black" actualmente pinneado arriba a la izquierda (o null si no hay ninguno cerca)
+let pinnedSponsorPlace = null;
+let pinnedSponsorEl = null;
 // Varios espejos públicos de Overpass: se pide a todos en paralelo y se usa
 // el primero que responda. Reparte la carga entre servidores en vez de
 // depender de uno solo, así se evita el 429 y se espera mucho menos.
@@ -525,7 +532,7 @@ const overpassSearch = async (lat, lng, radiusM) => {
   const key = `${Math.round(lat*400)}_${Math.round(lng*400)}`;
   const cached = OVERPASS_CACHE.get(key);
   if (cached && Date.now()-cached.ts < OVERPASS_CACHE_TTL) return cached.places;
-  const r = Math.min(radiusM, 2000);
+  const r = Math.min(radiusM, 10000);
   const q = `[out:json][timeout:15];
 (
   node["amenity"~"restaurant|cafe|fast_food|bar|pharmacy|hospital|clinic|bank|atm|post_office|fuel|bakery|dentist|doctors|social_facility|ice_cream|veterinary"](around:${r},${lat},${lng});
@@ -623,7 +630,7 @@ const geoapifySearch = async (lat, lng, radiusM) => {
   const key = `${Math.round(lat*400)}_${Math.round(lng*400)}`;
   const cached = GEOAPIFY_CACHE.get(key);
   if (cached && Date.now()-cached.ts < GEOAPIFY_CACHE_TTL) return cached.places;
-  const r = Math.min(radiusM, 2000);
+  const r = Math.min(radiusM, 10000);
   const url = `https://api.geoapify.com/v2/places?categories=${GEOAPIFY_CATEGORIES}&filter=circle:${lng},${lat},${r}&bias=proximity:${lng},${lat}&limit=100&apiKey=${CONFIG.GEOAPIFY_API_KEY}`;
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
@@ -738,8 +745,8 @@ const _loadPlaces = async (lat,lng) => {
   showPlacesLoading('Buscando comercios cercanos…');
   try {
     const [osms, backend] = await Promise.all([
-      searchPlaces(lat,lng,2000),
-      BACKEND_READY ? apiGet('sync_places', {lat,lng,radius:2000}) : null,
+      searchPlaces(lat,lng,600),
+      BACKEND_READY ? apiGet('sync_places', {lat,lng,radius:600}) : null,
     ]);
     const bm = new Map((backend?.places||[]).map(p=>[p.id,p]));
     const merged = osms.map(p => { const bp = bm.get(p.id); return bp ? {...p,...bp} : p; });
@@ -758,8 +765,7 @@ const _loadPlaces = async (lat,lng) => {
   }
 };
 const rebuildNearby = (lat,lng) => {
-  // const maxDist = CONFIG.TILE_DEG * 111320 * 1.2;
-  const maxDist = 2000;
+  const maxDist = CONFIG.TILE_DEG * 111320 * 1.2;
   nearbyPlaces = Object.values(placeStore).filter(p => validCoord(p.lat,p.lng) && dist(lat,lng,p.lat,p.lng) <= maxDist);
   applySeed(lat,lng);
 };
@@ -913,6 +919,7 @@ const onGps = pos => {
   const isFirstFix = !gpsEverReceived;
   userLat = lat; userLng = lng; gpsEverReceived = true;
   saveLastLocation(lat,lng);
+  checkPinnedSponsor(lat,lng);
   if (isFirstFix) maybeSuggestOfflineDownload();
   if (mlReady) updateUserMarker(lat,lng);
   if (mlReady && mlMap && validCoord(lat,lng)) {
@@ -941,6 +948,82 @@ const onGps = pos => {
     else maybeCheckin(lat,lng);
   }
   document.getElementById('splash').classList.add('hidden');
+};
+
+// ============================================================
+// SPONSOR "BLACK" — card fija arriba a la izquierda mientras el
+// usuario esté a ≤SPONSOR_PIN_RADIUS_M de un comercio de ese tier.
+// Al alejarse, la card vuelve a comportarse como un marker normal
+// en su lat/lng (se restaura la visibilidad del marker en el mapa).
+// ============================================================
+const ensurePinnedSponsorEl = () => {
+  if (pinnedSponsorEl) return pinnedSponsorEl;
+  const el = document.createElement('div');
+  el.id = 'pinned-sponsor-card';
+  el.style.cssText = `
+    position:fixed; top:14px; left:14px; z-index:9500;
+    width:230px; border-radius:16px; overflow:hidden;
+    background:linear-gradient(180deg,#1a1a1d 0%, #0a0a0c 100%);
+    border:1px solid rgba(212,175,55,0.45);
+    box-shadow:0 12px 34px rgba(0,0,0,.45), 0 0 0 1px rgba(212,175,55,.15);
+    opacity:0; transform:translateY(-10px);
+    pointer-events:none;
+    transition:opacity .32s ease, transform .32s cubic-bezier(.34,1.56,.64,1);
+    cursor:pointer; font-family:inherit;
+  `;
+  document.body.appendChild(el);
+  pinnedSponsorEl = el;
+  return el;
+};
+const renderPinnedSponsorCard = (place) => {
+  const el = ensurePinnedSponsorEl();
+  const logoInner = place.sponsor?.logo_url
+    ? `<img src="${place.sponsor.logo_url}" style="width:100%;height:100%;object-fit:contain;">`
+    : (place.logo || '🏪');
+  el.innerHTML = `
+    <div style="position:relative;height:76px;background:#111;">
+      ${place.sponsor?.photo_url ? `<img src="${place.sponsor.photo_url}" style="width:100%;height:100%;object-fit:cover;opacity:.55;">` : ''}
+      <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.8));"></div>
+      <div style="position:absolute;top:8px;left:8px;background:${SPONSOR_BLACK_ACCENT};color:#0A0A0C;font-size:9px;font-weight:900;letter-spacing:.6px;padding:2px 8px;border-radius:20px;">BLACK</div>
+      <div style="position:absolute;bottom:8px;left:10px;right:10px;display:flex;align-items:center;gap:8px;">
+        <div style="width:32px;height:32px;border-radius:9px;background:#151517;border:1px solid rgba(212,175,55,.4);display:flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden;flex-shrink:0;">${logoInner}</div>
+        <div style="min-width:0;">
+          <div style="font-size:12.5px;font-weight:800;color:#F5F0E6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${place.name}</div>
+          <div style="font-size:10px;color:#C9C2B4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${place.type||''}</div>
+        </div>
+      </div>
+    </div>
+    ${place.sponsor?.promo ? `<div style="padding:8px 10px;font-size:11px;font-weight:700;color:${SPONSOR_BLACK_ACCENT};">🎁 ${place.sponsor.promo}</div>` : ''}
+  `;
+  el.onclick = () => openPopup(place);
+  el.style.pointerEvents = 'auto';
+  requestAnimationFrame(() => { el.style.opacity = '1'; el.style.transform = 'translateY(0)'; });
+  const mk = mlMarkers[place.id];
+  if (mk) mk.el.style.visibility = 'hidden';
+};
+const hidePinnedSponsorCard = () => {
+  const prev = pinnedSponsorPlace;
+  pinnedSponsorPlace = null;
+  if (prev) { const mk = mlMarkers[prev.id]; if (mk) mk.el.style.visibility = ''; }
+  if (!pinnedSponsorEl) return;
+  pinnedSponsorEl.style.opacity = '0';
+  pinnedSponsorEl.style.transform = 'translateY(-10px)';
+  pinnedSponsorEl.style.pointerEvents = 'none';
+};
+const checkPinnedSponsor = (lat,lng) => {
+  const blackSponsors = Object.values(placeStore).filter(p => p.sponsor?.tier === 'black' && validCoord(p.lat,p.lng));
+  if (!blackSponsors.length) { if (pinnedSponsorPlace) hidePinnedSponsorCard(); return; }
+  let closest = null, closestD = Infinity;
+  blackSponsors.forEach(p => { const d = dist(lat,lng,p.lat,p.lng); if (d < closestD) { closestD = d; closest = p; } });
+  if (closest && closestD <= CONFIG.SPONSOR_PIN_RADIUS_M) {
+    if (!pinnedSponsorPlace || pinnedSponsorPlace.id !== closest.id) {
+      if (pinnedSponsorPlace) hidePinnedSponsorCard();
+      pinnedSponsorPlace = closest;
+      renderPinnedSponsorCard(closest);
+    }
+  } else if (pinnedSponsorPlace) {
+    hidePinnedSponsorCard();
+  }
 };
 
 // ============================================================
@@ -1132,12 +1215,16 @@ const _buildMarkers = (placesToShow) => {
           if (el) { el.style.background = s.color; const lbl = el.querySelector('.s-label-sm'); if (lbl) lbl.textContent = s.label; }
           m._lastStatus = p.status; m._lastReporters = p.reporters;
         }
+        // Si este lugar es el sponsor "black" pinneado actualmente, su marker
+        // sigue oculto (la card fija de arriba a la izquierda lo reemplaza).
+        if (pinnedSponsorPlace && pinnedSponsorPlace.id === p.id) m.el.style.visibility = 'hidden';
         return;
       }
       const el = makeMarker(p);
       el.addEventListener('click', () => { vibrate(10); selectPlaceInUI(p.id); if (pickModeActive) { exitPickMode(); openPopup(p); } else openPopup(p); });
       const marker = new maplibregl.Marker({ element:el, anchor:'bottom' }).setLngLat([p.lng,p.lat]).addTo(mlMap);
       mlMarkers[p.id] = { marker, el, _lastStatus:p.status, _lastReporters:p.reporters };
+      if (pinnedSponsorPlace && pinnedSponsorPlace.id === p.id) el.style.visibility = 'hidden';
       renderedNew++;
     });
     if (pending > 0) {
@@ -1175,15 +1262,21 @@ const makeMarker = p => {
   const logo = (p.sponsor?.logo_url) ? `<img src="${p.sponsor.logo_url}" alt="${p.name}">` : (p.logo || '🏪');
   const ver = p.verified ? `<div class="fc-card-verified">✓</div>` : '';
   const isPremium = p.sponsor?.tier === 'premium';
+  const isBlack = p.sponsor?.tier === 'black';
   const el = document.createElement('div');
-  el.className = 'fc-card-wrap' + (isPremium ? ' is-sponsor' : '');
-  if (isPremium) el.style.setProperty('--sponsor-color', SPONSOR_GOLD);
+  el.className = 'fc-card-wrap' + (isPremium ? ' is-sponsor' : '') + (isBlack ? ' is-sponsor is-sponsor-black' : '');
+  if (isBlack) {
+    el.style.setProperty('--sponsor-color', SPONSOR_BLACK_ACCENT);
+    el.style.setProperty('--sponsor-bg', SPONSOR_BLACK);
+    // Fallback inline por si el CSS global todavía no tiene la clase .is-sponsor-black definida:
+    el.style.filter = 'drop-shadow(0 2px 10px rgba(212,175,55,.35))';
+  } else if (isPremium) el.style.setProperty('--sponsor-color', SPONSOR_GOLD);
   else if (p.sponsor?.badge_color) el.style.setProperty('--sponsor-color', p.sponsor.badge_color);
   el.innerHTML = `
-    <div class="fc-card">
+    <div class="fc-card"${isBlack ? ' style="background:linear-gradient(180deg,#1a1a1d,#0a0a0c);border-color:rgba(212,175,55,.45);"' : ''}>
       <div class="fc-card-head">
         <div class="fc-card-logo">${logo}${ver}</div>
-        <div class="fc-card-info"><div class="fc-card-name">${p.name}</div><div class="fc-card-type">${p.type}</div></div>
+        <div class="fc-card-info"><div class="fc-card-name"${isBlack ? ' style="color:#F5F0E6;"' : ''}>${p.name}</div><div class="fc-card-type"${isBlack ? ' style="color:#9A9384;"' : ''}>${p.type}</div></div>
         <span class="fc-card-open ${p.open?'open':'closed'}">${p.open?'Abierto':'Cerrado'}</span>
       </div>
       <div class="fc-card-status" style="background:${s.color}"><div class="s-dot-sm"></div><div class="s-label-sm">${s.label}</div></div>
@@ -1365,12 +1458,23 @@ const PlacePopup = ({ place, onClose }) => {
   const photo = getPhoto(place);
   const sponsor = place.sponsor || null;
   const isPremium = sponsor?.tier === 'premium';
-  const sponsorColor = isPremium ? SPONSOR_GOLD : (sponsor?.badge_color || '#6366F1');
-  const badgeText = sponsor?.badge_text || null;
+  const isBlack = sponsor?.tier === 'black';
+  const sponsorColor = isBlack ? SPONSOR_BLACK_ACCENT : (isPremium ? SPONSOR_GOLD : (sponsor?.badge_color || '#6366F1'));
+  const badgeText = sponsor?.badge_text || (isBlack ? 'Black' : null);
   const promo = sponsor?.promo || null;
   const website = sponsor?.website || null;
   // Paleta "gold premium" para comercios sponsor de nivel premium — mismo lineamiento que la mini card y la card de lista
-  const T = isPremium ? {
+  const T = isBlack ? {
+    cardBg: `linear-gradient(180deg, #1a1a1d 0%, #0a0a0c 55%)`,
+    statBg: `rgba(212,175,55,0.08)`,
+    statBorder: `1px solid rgba(212,175,55,0.35)`,
+    text: '#F5F0E6',
+    text2: '#C9C2B4',
+    text3: '#9A9384',
+    btnBg: '#151517',
+    btnBorder: 'rgba(212,175,55,0.4)',
+    pad: '13px 14px 16px',
+  } : isPremium ? {
     cardBg: `linear-gradient(180deg, color-mix(in srgb, ${sponsorColor} 14%, #fff) 0%, rgba(29,29,29) 48%)`,
     statBg: `color-mix(in srgb, ${sponsorColor} 9%, #fff)`,
     statBorder: `1px solid color-mix(in srgb, ${sponsorColor} 28%, var(--border))`,
@@ -1394,18 +1498,18 @@ const PlacePopup = ({ place, onClose }) => {
   const cardStyle = {
     width:'100%', maxWidth:'370px', background: T ? T.cardBg : '#fff', borderRadius:'22px',
     overflow:'hidden',
-    boxShadow: isPremium ? `0 24px 64px rgba(15,23,42,.22), 0 0 0 2px ${sponsorColor}60` : (sponsor ? `0 24px 64px rgba(15,23,42,.28), 0 0 0 2px ${sponsorColor}40` : '0 24px 64px rgba(15,23,42,.28)'),
+    boxShadow: (isPremium || isBlack) ? `0 24px 64px rgba(15,23,42,.22), 0 0 0 2px ${sponsorColor}60` : (sponsor ? `0 24px 64px rgba(15,23,42,.28), 0 0 0 2px ${sponsorColor}40` : '0 24px 64px rgba(15,23,42,.28)'),
     transform: cardVisible ? 'translateY(0) scale(1)' : 'translateY(40px) scale(0.93)',
     opacity: cardVisible ? 1 : 0,
     transition: 'transform 0.38s cubic-bezier(0.34,1.56,0.64,1), opacity 0.28s ease',
     maxHeight: 'calc(100dvh - 40px)', display:'flex', flexDirection:'column',
   };
 
-  const tooFar = hasGps && !nearby && !onCooldown && React.createElement('div', { style:{display:'flex',alignItems:'center',gap:10,background:'#F1F5F9',border:'1px solid #E2E8F0',borderRadius:12,padding:'10px 12px',marginBottom:12} },
+  const tooFar = hasGps && !nearby && !onCooldown && React.createElement('div', { style:{display:'flex',alignItems:'center',gap:10,background: T ? '#151517' : '#F1F5F9',border: T ? '1px solid rgba(212,175,55,.25)' : '1px solid #E2E8F0',borderRadius:12,padding:'10px 12px',marginBottom:12} },
     React.createElement('span', {style:{fontSize:20,flexShrink:0}},'📍'),
     React.createElement('div', null,
-      React.createElement('p', {style:{margin:0,fontSize:13,fontWeight:800,color:'#0F172A'}}, `Estás a ${distTo}m de este comercio`),
-      React.createElement('p', {style:{margin:'2px 0 0',fontSize:12,color:'#64748B'}}, 'Necesitás estar a menos de '+CONFIG.REPORT_RADIUS_M+'m para reportar.')
+      React.createElement('p', {style:{margin:0,fontSize:13,fontWeight:800,color: T ? T.text : '#0F172A'}}, `Estás a ${distTo}m de este comercio`),
+      React.createElement('p', {style:{margin:'2px 0 0',fontSize:12,color: T ? T.text3 : '#64748B'}}, 'Necesitás estar a menos de '+CONFIG.REPORT_RADIUS_M+'m para reportar.')
     )
   );
   const notLog = !isLoggedIn && !onCooldown && React.createElement('div', { style:{display:'flex',alignItems:'center',gap:10,background:'#F0FDF9',border:'1px solid #A8EDD8',borderRadius:12,padding:'10px 12px',marginBottom:12} },
@@ -1430,8 +1534,8 @@ const PlacePopup = ({ place, onClose }) => {
             onError:e => { const fb = PHOTOS[place.type] || PHOTOS.default; if (e.target.src !== fb) e.target.src = fb; },
             style:{width:'100%',height:'100%',objectFit:'cover',display:'block',opacity:imgLoaded?1:0,transition:'opacity 0.4s ease'}
           }),
-          badgeText && React.createElement('div', {style:{position:'absolute',top:12,right:52,background:sponsorColor,borderRadius:40,padding:'3px 9px',display:'flex',alignItems:'center',gap:4,boxShadow:'0 2px 8px rgba(0,0,0,.25)'}},
-            React.createElement('span', {style:{fontSize:10,fontWeight:800,color:'#fff'}}, badgeText)
+          badgeText && React.createElement('div', {style:{position:'absolute',top:12,right:52,background: isBlack ? `linear-gradient(135deg,#0A0A0C,#1c1c20)` : sponsorColor,border: isBlack ? `1px solid ${SPONSOR_BLACK_ACCENT}` : 'none',borderRadius:40,padding:'3px 9px',display:'flex',alignItems:'center',gap:4,boxShadow:'0 2px 8px rgba(0,0,0,.25)'}},
+            React.createElement('span', {style:{fontSize:10,fontWeight:800,color: isBlack ? SPONSOR_BLACK_ACCENT : '#fff',letterSpacing:isBlack?'.4px':'normal'}}, badgeText)
           ),
           React.createElement('div', { style:{position:'absolute',inset:0,background:'linear-gradient(to bottom, rgba(0,0,0,0) 30%, rgba(0,0,0,0.68) 100%)'} }),
           React.createElement('button', {
@@ -1551,10 +1655,10 @@ const PlacePopup = ({ place, onClose }) => {
             href: website, target:'_blank', rel:'noopener noreferrer',
             style:{
               display:'block', marginTop:10, fontSize:11.5, fontWeight:800,
-              color: BRAND_GREEN, textAlign:'center', textDecoration:'none',
-              border:`1.5px solid ${BRAND_GREEN}`, borderRadius:40,
+              color: isBlack ? SPONSOR_BLACK_ACCENT : BRAND_GREEN, textAlign:'center', textDecoration:'none',
+              border:`1.5px solid ${isBlack ? SPONSOR_BLACK_ACCENT : BRAND_GREEN}`, borderRadius:40,
               padding:'9px 14px',
-              background: `${BRAND_GREEN}0D`,
+              background: isBlack ? 'rgba(212,175,55,0.08)' : `${BRAND_GREEN}0D`,
               letterSpacing:'.2px',
             }
           }, website.replace(/^https?:\/\//,'').replace(/\/$/,''))
@@ -1708,18 +1812,21 @@ const cercaRenderList = () => {
       const s = getStatus(p);
       const logo = (p.sponsor?.logo_url) ? `<img src="${p.sponsor.logo_url}" alt="${p.name}">` : (p.logo || '🏪');
       const rev = typeof p.reviewsN === 'number' ? p.reviewsN.toLocaleString('es-AR') : p.reviewsN;
-      const isSponsor = p.sponsor?.tier === 'premium';
-      const sponsorStyle = isSponsor ? `--sponsor-color:${SPONSOR_GOLD};` : '';
-      const sponsorBadge = isSponsor && p.sponsor?.badge_text ? `<span class="nc-sponsor-badge">${p.sponsor.badge_text}</span>` : '';
-      html += `<div class="nc-card${isSponsor ? ' is-sponsor' : ''}" data-place-id="${p.id}" style="animation-delay:${Math.min(idx*0.025,0.3)}s;${sponsorStyle}">
+      const tier = p.sponsor?.tier;
+      const isPremiumTier = tier === 'premium';
+      const isBlackTier = tier === 'black';
+      const isSponsor = isPremiumTier || isBlackTier;
+      const sponsorStyle = isBlackTier ? `--sponsor-color:${SPONSOR_BLACK_ACCENT};` : (isPremiumTier ? `--sponsor-color:${SPONSOR_GOLD};` : '');
+      const sponsorBadge = isSponsor && p.sponsor?.badge_text ? `<span class="nc-sponsor-badge${isBlackTier ? ' nc-sponsor-badge-black' : ''}"${isBlackTier ? ` style="background:linear-gradient(135deg,#0A0A0C,#1c1c20);color:${SPONSOR_BLACK_ACCENT};border:1px solid rgba(212,175,55,.5);"` : ''}>${p.sponsor.badge_text}</span>` : '';
+      html += `<div class="nc-card${isSponsor ? ' is-sponsor' : ''}${isBlackTier ? ' is-sponsor-black' : ''}" data-place-id="${p.id}" style="animation-delay:${Math.min(idx*0.025,0.3)}s;${sponsorStyle}${isBlackTier ? 'background:linear-gradient(180deg,#1a1a1d,#0a0a0c);border-color:rgba(212,175,55,.35);' : ''}">
         <div class="nc-logo">${logo}</div>
         <div class="nc-body">
-          <div class="nc-top"><div class="nc-name">${p.name}</div>${sponsorBadge}<span class="nc-badge-open ${p.open?'open':'closed'}">${p.open?'Abierto':'Cerrado'}</span></div>
-          <div class="nc-meta"><span class="nc-type">${p.type}</span><div class="nc-dot"></div><span class="nc-dist">📍 ${fmtDist(p.dist)}</span>${p.addr ? `<div class="nc-dot"></div><span class="nc-addr">${p.addr}</span>` : ''}</div>
+          <div class="nc-top"><div class="nc-name"${isBlackTier ? ' style="color:#F5F0E6;"' : ''}>${p.name}</div>${sponsorBadge}<span class="nc-badge-open ${p.open?'open':'closed'}">${p.open?'Abierto':'Cerrado'}</span></div>
+          <div class="nc-meta"${isBlackTier ? ' style="color:#9A9384;"' : ''}><span class="nc-type">${p.type}</span><div class="nc-dot"></div><span class="nc-dist">📍 ${fmtDist(p.dist)}</span>${p.addr ? `<div class="nc-dot"></div><span class="nc-addr">${p.addr}</span>` : ''}</div>
           <div class="nc-status" style="background:${s.color}"><div class="nc-sdot"></div><span class="nc-slabel">${s.label}</span><span class="nc-ssub">${s.sub}</span></div>
         </div>
         <div class="nc-right">
-          <div class="nc-rating"><span class="nc-star">★</span>${p.rating}<span class="nc-rn">&nbsp;(${rev})</span></div>
+          <div class="nc-rating"${isBlackTier ? ' style="color:#F5F0E6;"' : ''}><span class="nc-star">★</span>${p.rating}<span class="nc-rn">&nbsp;(${rev})</span></div>
           <button class="nc-report-btn" data-place-id="${p.id}">Reportar</button>
         </div>
       </div>`;
