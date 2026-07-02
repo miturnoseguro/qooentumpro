@@ -86,9 +86,26 @@ create table if not exists public.reports (
 
 create index if not exists reports_user_idx  on public.reports (user_id, created_at desc);
 create index if not exists reports_place_idx on public.reports (place_id, created_at desc);
--- Cooldown: 1 reporte por usuario+lugar por día natural.
+
+-- Helper IMMUTABLE para "día calendario" de un timestamp, fijado en UTC.
+-- Necesario porque timestamptz::date depende del TimeZone de la sesión
+-- (no es determinístico), y Postgres no permite usar una función así
+-- de no-IMMUTABLE en una expresión de índice. Fijando UTC explícito acá
+-- el resultado es siempre el mismo para el mismo input → sí puede ser
+-- IMMUTABLE. submit_vote() (02_functions.sql) usa esta MISMA función
+-- para chequear el cooldown, así ambos coinciden en el borde de
+-- medianoche sin importar el TimeZone del server.
+create or replace function public._report_day(ts timestamptz)
+returns date
+language sql
+immutable
+as $$
+  select (ts at time zone 'utc')::date
+$$;
+
+-- Cooldown: 1 reporte por usuario+lugar por día natural (UTC).
 create unique index if not exists reports_user_place_day_idx
-  on public.reports (user_id, place_id, (created_at::date));
+  on public.reports (user_id, place_id, (public._report_day(created_at)));
 
 -- ---------------------------------------------------------------
 -- prizes
