@@ -26,8 +26,8 @@ const OVERPASS_MIRRORS = [
   'https://overpass.kumi.systems/api/interpreter',
   'https://overpass.private.coffee/api/interpreter',
 ];
-const TILE_KM_DEFAULT = 3;       // tamaño de cada celda del grid
-const OVERPASS_TIMEOUT_MS = 30000;
+const TILE_KM_DEFAULT = 1.5;     // tamaño de cada celda del grid (bajado de 3km: la query ampliada trae mucha más densidad por km², tiles chicos = menos riesgo de timeout)
+const OVERPASS_TIMEOUT_MS = 65000; // debe ser mayor al [timeout:60] que pide la query en buildQuery()
 const RETRIES_PER_TILE = 3;
 const DELAY_BETWEEN_REQUESTS_MS = 1200; // por espejo, para no comerse un 429
 const UPSERT_BATCH_SIZE = 400;
@@ -93,6 +93,10 @@ const OSM_RULES = [
   { match: { shop: 'sports' }, emoji: '⚽', tipo: 'Deportes', cat: 'shopping' },
   { match: { shop: 'furniture' }, emoji: '🛋️', tipo: 'Mueblería', cat: 'shopping' },
   { match: { shop: 'stationery' }, emoji: '✏️', tipo: 'Librería/Papelería', cat: 'shopping' },
+  { match: { healthcare: true }, emoji: '👨‍⚕️', tipo: 'Salud', cat: 'health' },
+  { match: { craft: true }, emoji: '🔨', tipo: 'Taller/Oficio', cat: 'shopping' },
+  { match: { tourism: true }, emoji: '🧳', tipo: 'Turismo', cat: 'shopping' },
+  { match: { office: true }, emoji: '🏢', tipo: 'Oficina', cat: 'shopping' },
   { match: { shop: true }, emoji: '🏪', tipo: 'Comercio', cat: 'shopping' },
   { match: { amenity: true }, emoji: '📍', tipo: 'Lugar', cat: 'other' },
   { match: { leisure: true }, emoji: '📍', tipo: 'Lugar', cat: 'other' },
@@ -109,13 +113,26 @@ const osmToMeta = tags => {
   return { emoji: '📍', tipo: 'Lugar', cat: 'other' };
 };
 
+// Antes esto era una whitelist de ~20 valores de amenity/shop: cualquier
+// comercio con un tag que no estuviera en esa lista quedaba afuera del
+// import sin ningún aviso. Ahora se pide cualquier node/way que tenga
+// "name" + alguno de estos tags "genéricos" (shop=*, amenity=*, etc.),
+// sin filtrar por valor — así entra todo lo que OSM tiene mapeado como
+// comercio/servicio, y osmToMeta() de arriba es la que decide después
+// cómo mostrarlo (emoji/tipo/categoría).
 const OVERPASS_TAG_QUERY = `
-  node["amenity"~"restaurant|cafe|fast_food|bar|pharmacy|hospital|clinic|bank|atm|post_office|fuel|bakery|dentist|doctors|social_facility|ice_cream|veterinary"](__BBOX__);
-  node["shop"~"supermarket|convenience|greengrocer|butcher|clothes|shoes|electronics|hardware|books|mobile_phone|hairdresser|beauty|laundry|bakery|money_lender|optician|pet|sports|furniture|stationery"](__BBOX__);
-  node["leisure"~"fitness_centre|sports_centre"](__BBOX__);
-  way["amenity"~"restaurant|cafe|fast_food|bar|pharmacy|hospital|clinic|bank|fuel|supermarket|veterinary"](__BBOX__);
-  way["shop"~"supermarket|convenience|hardware|sports|furniture"](__BBOX__);
-  way["leisure"~"fitness_centre|sports_centre"](__BBOX__);
+  node["name"]["shop"](__BBOX__);
+  node["name"]["amenity"](__BBOX__);
+  node["name"]["office"](__BBOX__);
+  node["name"]["leisure"](__BBOX__);
+  node["name"]["healthcare"](__BBOX__);
+  node["name"]["craft"](__BBOX__);
+  node["name"]["tourism"](__BBOX__);
+  way["name"]["shop"](__BBOX__);
+  way["name"]["amenity"](__BBOX__);
+  way["name"]["office"](__BBOX__);
+  way["name"]["leisure"](__BBOX__);
+  way["name"]["healthcare"](__BBOX__);
 `;
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -123,7 +140,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // bbox: [south, west, north, east]
 const buildQuery = bbox => {
   const b = `${bbox[0]},${bbox[1]},${bbox[2]},${bbox[3]}`;
-  return `[out:json][timeout:25];(${OVERPASS_TAG_QUERY.replace(/__BBOX__/g, b)});out center 400;`;
+  return `[out:json][timeout:60];(${OVERPASS_TAG_QUERY.replace(/__BBOX__/g, b)});out center;`;
 };
 
 // Prueba cada espejo en orden, con reintentos, antes de dar por perdido el tile.
