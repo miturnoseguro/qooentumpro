@@ -2075,7 +2075,6 @@ document.addEventListener('DOMContentLoaded', () => {
   loadCooldowns();
   pruneTiles();
   updateHUD();
-  initToken();
   restoreSession();
   maybeStartSync();
   requestGpsBeforeMap();
