@@ -122,7 +122,7 @@ let userLat = null, userLng = null, gpsEverReceived = false, followMode = true;
 let mlMap = null, mlReady = false, mlMarkers = {}, mlClusterMarkers = [], mlUserMarker = null;
 let gpsWatchId = null, placeCooldowns = {};
 let currentPopupPlace = null, popupRoot = null;
-let cercaAllPlaces = [], cercaFiltered = [], cercaRadius=10000, cercaCat='all', cercaSearchQ='', cercaSortMode='distance', cercaSortIdx=0, cercaLoading=false;
+let cercaAllPlaces = [], cercaFiltered = [], cercaRadius=2000, cercaCat='all', cercaSearchQ='', cercaSortMode='distance', cercaSortIdx=0, cercaLoading=false;
 let cercaLoaded = false;
 let cercaReqId = 0; // usado para descartar respuestas de cargas viejas (evita el parpadeo al cambiar de radio rápido)
 let cercaCache = {}; // cache de resultados por radio, para no repetir el flash de datos demo al volver a un radio ya visitado
@@ -525,7 +525,7 @@ const overpassSearch = async (lat, lng, radiusM) => {
   const key = `${Math.round(lat*400)}_${Math.round(lng*400)}`;
   const cached = OVERPASS_CACHE.get(key);
   if (cached && Date.now()-cached.ts < OVERPASS_CACHE_TTL) return cached.places;
-  const r = Math.min(radiusM, 10000);
+  const r = Math.min(radiusM, 2000);
   const q = `[out:json][timeout:15];
 (
   node["amenity"~"restaurant|cafe|fast_food|bar|pharmacy|hospital|clinic|bank|atm|post_office|fuel|bakery|dentist|doctors|social_facility|ice_cream|veterinary"](around:${r},${lat},${lng});
@@ -623,7 +623,7 @@ const geoapifySearch = async (lat, lng, radiusM) => {
   const key = `${Math.round(lat*400)}_${Math.round(lng*400)}`;
   const cached = GEOAPIFY_CACHE.get(key);
   if (cached && Date.now()-cached.ts < GEOAPIFY_CACHE_TTL) return cached.places;
-  const r = Math.min(radiusM, 10000);
+  const r = Math.min(radiusM, 2000);
   const url = `https://api.geoapify.com/v2/places?categories=${GEOAPIFY_CATEGORIES}&filter=circle:${lng},${lat},${r}&bias=proximity:${lng},${lat}&limit=100&apiKey=${CONFIG.GEOAPIFY_API_KEY}`;
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
@@ -738,8 +738,8 @@ const _loadPlaces = async (lat,lng) => {
   showPlacesLoading('Buscando comercios cercanos…');
   try {
     const [osms, backend] = await Promise.all([
-      searchPlaces(lat,lng,10000),
-      BACKEND_READY ? apiGet('sync_places', {lat,lng,radius:10000}) : null,
+      searchPlaces(lat,lng,2000),
+      BACKEND_READY ? apiGet('sync_places', {lat,lng,radius:2000}) : null,
     ]);
     const bm = new Map((backend?.places||[]).map(p=>[p.id,p]));
     const merged = osms.map(p => { const bp = bm.get(p.id); return bp ? {...p,...bp} : p; });
@@ -759,7 +759,7 @@ const _loadPlaces = async (lat,lng) => {
 };
 const rebuildNearby = (lat,lng) => {
   // const maxDist = CONFIG.TILE_DEG * 111320 * 1.2;
-  const maxDist = 10000;
+  const maxDist = 2000;
   nearbyPlaces = Object.values(placeStore).filter(p => validCoord(p.lat,p.lng) && dist(lat,lng,p.lat,p.lng) <= maxDist);
   applySeed(lat,lng);
 };
