@@ -9,7 +9,7 @@ permissions:
   pages: write
   id-token: write
   
-  concurrency:
+concurrency:
   group: "pages"
   cancel-in-progress: false
 
