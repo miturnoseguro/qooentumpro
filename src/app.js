@@ -525,7 +525,7 @@ const overpassSearch = async (lat, lng, radiusM) => {
   const key = `${Math.round(lat*400)}_${Math.round(lng*400)}`;
   const cached = OVERPASS_CACHE.get(key);
   if (cached && Date.now()-cached.ts < OVERPASS_CACHE_TTL) return cached.places;
-  const r = Math.min(radiusM, 5000);
+  const r = Math.min(radiusM, 10000);
   const q = `[out:json][timeout:15];
 (
   node["amenity"~"restaurant|cafe|fast_food|bar|pharmacy|hospital|clinic|bank|atm|post_office|fuel|bakery|dentist|doctors|social_facility|ice_cream|veterinary"](around:${r},${lat},${lng});
@@ -623,7 +623,7 @@ const geoapifySearch = async (lat, lng, radiusM) => {
   const key = `${Math.round(lat*400)}_${Math.round(lng*400)}`;
   const cached = GEOAPIFY_CACHE.get(key);
   if (cached && Date.now()-cached.ts < GEOAPIFY_CACHE_TTL) return cached.places;
-  const r = Math.min(radiusM, 5000);
+  const r = Math.min(radiusM, 10000);
   const url = `https://api.geoapify.com/v2/places?categories=${GEOAPIFY_CATEGORIES}&filter=circle:${lng},${lat},${r}&bias=proximity:${lng},${lat}&limit=100&apiKey=${CONFIG.GEOAPIFY_API_KEY}`;
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
