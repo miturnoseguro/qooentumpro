@@ -16,7 +16,7 @@ const CONFIG = {
   // 'PEGAR_AQUI', la app sigue funcionando solo con Overpass.
   GEOAPIFY_API_KEY: '631ee415c3eb4b87b4d5a0c59503af58',
   DEFAULT_CENTER: { lat: -34.6083, lng: -58.3896 },
-  REPORT_RADIUS_M: 20,
+  REPORT_RADIUS_M: 30,
   GPS_ZOOM: 19,
   FOLLOW_ZOOM: 18,
   CHECKIN_RADIUS_M: 150,
@@ -122,7 +122,7 @@ let userLat = null, userLng = null, gpsEverReceived = false, followMode = true;
 let mlMap = null, mlReady = false, mlMarkers = {}, mlClusterMarkers = [], mlUserMarker = null;
 let gpsWatchId = null, placeCooldowns = {};
 let currentPopupPlace = null, popupRoot = null;
-let cercaAllPlaces = [], cercaFiltered = [], cercaRadius=1000, cercaCat='all', cercaSearchQ='', cercaSortMode='distance', cercaSortIdx=0, cercaLoading=false;
+let cercaAllPlaces = [], cercaFiltered = [], cercaRadius=10000, cercaCat='all', cercaSearchQ='', cercaSortMode='distance', cercaSortIdx=0, cercaLoading=false;
 let cercaLoaded = false;
 let cercaReqId = 0; // usado para descartar respuestas de cargas viejas (evita el parpadeo al cambiar de radio rápido)
 let cercaCache = {}; // cache de resultados por radio, para no repetir el flash de datos demo al volver a un radio ya visitado
@@ -738,8 +738,8 @@ const _loadPlaces = async (lat,lng) => {
   showPlacesLoading('Buscando comercios cercanos…');
   try {
     const [osms, backend] = await Promise.all([
-      searchPlaces(lat,lng,600),
-      BACKEND_READY ? apiGet('sync_places', {lat,lng,radius:600}) : null,
+      searchPlaces(lat,lng,10000),
+      BACKEND_READY ? apiGet('sync_places', {lat,lng,radius:10000}) : null,
     ]);
     const bm = new Map((backend?.places||[]).map(p=>[p.id,p]));
     const merged = osms.map(p => { const bp = bm.get(p.id); return bp ? {...p,...bp} : p; });
@@ -758,7 +758,8 @@ const _loadPlaces = async (lat,lng) => {
   }
 };
 const rebuildNearby = (lat,lng) => {
-  const maxDist = CONFIG.TILE_DEG * 111320 * 1.2;
+  // const maxDist = CONFIG.TILE_DEG * 111320 * 1.2;
+  const maxDist = 10000;
   nearbyPlaces = Object.values(placeStore).filter(p => validCoord(p.lat,p.lng) && dist(lat,lng,p.lat,p.lng) <= maxDist);
   applySeed(lat,lng);
 };
