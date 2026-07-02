@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Qooentum · Admin sponsors</title>
+<style>
+  :root{
+    --green:#00C48C; --gold:#D4AF37; --bg:#F0F4F8; --card:#fff;
+    --text:#0F172A; --sub:#64748B; --border:#E2E8F0; --danger:#EF4444;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);}
+  .wrap{max-width:640px;margin:0 auto;padding:20px 16px 80px;}
+  h1{font-size:20px;font-weight:800;margin:8px 0 2px;}
+  .sub{color:var(--sub);font-size:13px;margin-bottom:20px;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;}
+  button{cursor:pointer;border:none;border-radius:10px;font-weight:700;font-size:14px;padding:10px 16px;}
+  .btn-primary{background:var(--green);color:#fff;}
+  .btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+  .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text);}
+  .btn-danger{background:transparent;border:1px solid var(--danger);color:var(--danger);}
+  input,select,textarea{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:9px;font-size:14px;font-family:inherit;margin-top:4px;}
+  label{font-size:12px;font-weight:700;color:var(--sub);display:block;margin-top:10px;}
+  .row{display:flex;gap:8px;}
+  .row > *{flex:1;}
+  .result{display:flex;align-items:center;justify-content:space-between;padding:10px 4px;border-bottom:1px solid var(--border);cursor:pointer;}
+  .result:hover{background:#fafafa;}
+  .result:last-child{border-bottom:none;}
+  .result-name{font-weight:700;font-size:14px;}
+  .result-sub{font-size:12px;color:var(--sub);}
+  .badge-gold{background:var(--gold);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;}
+  .hidden{display:none !important;}
+  .msg{font-size:13px;padding:10px 12px;border-radius:9px;margin-bottom:12px;}
+  .msg-err{background:#FEF2F2;color:var(--danger);}
+  .msg-ok{background:#ECFDF5;color:#047857;}
+  .selected-title{font-weight:800;font-size:15px;margin-bottom:2px;}
+  .selected-id{font-size:11px;color:var(--sub);font-family:monospace;}
+  .footer-actions{display:flex;gap:8px;margin-top:16px;}
+  .config-note{font-size:12px;color:var(--sub);background:#FFFBEB;border:1px solid #FDE68A;padding:10px 12px;border-radius:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🏪 Qooentum · Admin sponsors</h1>
+  <div class="sub">Cargar / editar el sponsor premium de un comercio, sin tocar SQL.</div>
+
+  <div id="configWarning" class="config-note hidden">
+    ⚠️ Falta configurar <code>SUPABASE_URL</code> / <code>SUPABASE_ANON_KEY</code> arriba en el
+    <code>&lt;script&gt;</code> de este archivo (son los mismos valores de tu <code>.env</code>,
+    la anon key es pública a propósito — la protege RLS + el chequeo de admin).
+  </div>
+
+  <div id="loginCard" class="card">
+    <div id="loginMsg" class="msg hidden"></div>
+    <button id="btnLogin" class="btn-primary">Iniciar sesión con Google</button>
+    <div id="sessionInfo" class="sub hidden" style="margin-top:10px;"></div>
+    <button id="btnLogout" class="btn-ghost hidden" style="margin-top:8px;">Cerrar sesión</button>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="card">
+      <label>Buscar comercio (por nombre o id)</label>
+      <div class="row">
+        <input id="searchInput" placeholder="ej: Vivero Palermo, o osm-node-123..." />
+        <button id="btnSearch" class="btn-primary" style="flex:0 0 auto;">Buscar</button>
+      </div>
+      <div id="results" style="margin-top:10px;"></div>
+    </div>
+
+    <div id="editCard" class="card hidden">
+      <div id="editMsg" class="msg hidden"></div>
+      <div class="selected-title" id="selName">—</div>
+      <div class="selected-id" id="selId">—</div>
+
+      <label>¿Es lugar nuevo? completá estos 3 si no apareció en la búsqueda</label>
+      <div class="row">
+        <input id="fName" placeholder="Nombre" />
+      </div>
+      <div class="row">
+        <input id="fLat" placeholder="Lat (ej: -34.5885)" />
+        <input id="fLng" placeholder="Lng (ej: -58.4180)" />
+      </div>
+
+      <label>Tier</label>
+      <select id="fTier">
+        <option value="">Sin sponsor (comercio normal)</option>
+        <option value="basic">Básico (color custom)</option>
+        <option value="premium">Premium (dorado)</option>
+      </select>
+
+      <label>Texto del badge</label>
+      <input id="fBadgeText" placeholder="Socio Qooentum" />
+
+      <label>Color del badge (solo si tier = básico; premium siempre es dorado)</label>
+      <input id="fBadgeColor" placeholder="#6366F1" />
+
+      <label>Promo / cupón</label>
+      <input id="fPromo" placeholder="10% off mostrando la app" />
+
+      <label>Sitio web</label>
+      <input id="fWebsite" placeholder="https://shop.ejemplo.com" />
+
+      <label>Logo (URL, cuadrado, fondo transparente idealmente)</label>
+      <input id="fLogoUrl" placeholder="https://..." />
+
+      <label>Foto de portada (URL)</label>
+      <input id="fPhotoUrl" placeholder="https://..." />
+
+      <div class="footer-actions">
+        <button id="btnSave" class="btn-primary">Guardar</button>
+        <button id="btnRemove" class="btn-danger">Quitar sponsor</button>
+        <button id="btnCancel" class="btn-ghost">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+// ============================================================
+// CONFIGURÁ ESTO (mismos valores que tu .env, VITE_SUPABASE_URL
+// y VITE_SUPABASE_ANON_KEY — la anon key SÍ va acá, es pública a
+// propósito. NUNCA pongas la service_role key en este archivo).
+// ============================================================
+const SUPABASE_URL = 'TU_VITE_SUPABASE_URL_ACA';
+const SUPABASE_ANON_KEY = 'TU_VITE_SUPABASE_ANON_KEY_ACA';
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const configOk = !SUPABASE_URL.startsWith('TU_') && !SUPABASE_ANON_KEY.startsWith('TU_');
+if (!configOk) document.getElementById('configWarning').classList.remove('hidden');
+
+const supabase = configOk ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+const $ = id => document.getElementById(id);
+const show = el => el.classList.remove('hidden');
+const hide = el => el.classList.add('hidden');
+
+let selected = null; // { id, isNew, sponsor }
+
+function showMsg(el, text, kind) {
+  el.textContent = text;
+  el.className = 'msg ' + (kind === 'err' ? 'msg-err' : 'msg-ok');
+  show(el);
+}
+
+// ---- Auth ----
+$('btnLogin').addEventListener('click', async () => {
+  if (!supabase) return;
+  await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.href } });
+});
+$('btnLogout').addEventListener('click', async () => {
+  await supabase.auth.signOut();
+  location.reload();
+});
+
+async function checkAdminAndInit() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return;
+
+  $('sessionInfo').textContent = 'Sesión: ' + session.user.email;
+  show($('sessionInfo'));
+  show($('btnLogout'));
+  hide($('btnLogin'));
+
+  // aseguramos que exista el profile (mismo flow que get_profile en la app)
+  await supabase.rpc('get_profile', { p_email: session.user.email });
+
+  const { error } = await supabase.rpc('admin_search_places', { p_query: '' });
+  if (error) {
+    showMsg($('loginMsg'), 'Tu usuario (' + session.user.email + ') no es admin todavía. Pedile a quien tenga acceso al SQL Editor que corra: update public.profiles set role=\'admin\' where email=\'' + session.user.email + '\';', 'err');
+    return;
+  }
+  show($('app'));
+}
+
+if (supabase) {
+  supabase.auth.onAuthStateChange((_e, _s) => checkAdminAndInit());
+  checkAdminAndInit();
+}
+
+// ---- Búsqueda ----
+$('btnSearch').addEventListener('click', doSearch);
+$('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+async function doSearch() {
+  const q = $('searchInput').value.trim();
+  if (!q) return;
+  const { data, error } = await supabase.rpc('admin_search_places', { p_query: q });
+  const box = $('results');
+  box.innerHTML = '';
+  if (error) { box.innerHTML = '<div class="msg msg-err">' + error.message + '</div>'; return; }
+  if (!data || !data.length) {
+    box.innerHTML = '<div class="sub" style="padding:8px 4px;">Sin resultados. Si es un lugar nuevo, completá el formulario de abajo a mano.</div>';
+    openEditor({ id: 'sponsor-' + q.toLowerCase().replace(/[^a-z0-9]+/g, '-'), isNew: true, name: q, sponsor: null });
+    return;
+  }
+  data.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'result';
+    row.innerHTML = `
+      <div>
+        <div class="result-name">${p.name}</div>
+        <div class="result-sub">${p.type || ''} · ${p.id}</div>
+      </div>
+      ${p.sponsor ? '<span class="badge-gold">' + (p.sponsor.tier === 'premium' ? 'Premium' : 'Sponsor') + '</span>' : ''}
+    `;
+    row.addEventListener('click', () => openEditor({ id: p.id, isNew: false, name: p.name, lat: p.lat, lng: p.lng, type: p.type, cat: p.cat, addr: p.addr, sponsor: p.sponsor }));
+    box.appendChild(row);
+  });
+}
+
+// ---- Editor ----
+function openEditor(place) {
+  selected = place;
+  hide($('editMsg'));
+  $('selName').textContent = place.name || '(nuevo lugar)';
+  $('selId').textContent = place.id;
+  $('fName').value = place.name || '';
+  $('fLat').value = place.lat ?? '';
+  $('fLng').value = place.lng ?? '';
+
+  const s = place.sponsor || {};
+  $('fTier').value = s.tier || '';
+  $('fBadgeText').value = s.badge_text || '';
+  $('fBadgeColor').value = s.badge_color || '';
+  $('fPromo').value = s.promo || '';
+  $('fWebsite').value = s.website || '';
+  $('fLogoUrl').value = s.logo_url || '';
+  $('fPhotoUrl').value = s.photo_url || '';
+
+  show($('editCard'));
+  $('editCard').scrollIntoView({ behavior: 'smooth' });
+}
+
+$('btnCancel').addEventListener('click', () => hide($('editCard')));
+
+$('btnSave').addEventListener('click', async () => {
+  if (!selected) return;
+  const tier = $('fTier').value;
+  const sponsor = tier ? {
+    tier,
+    badge_text: $('fBadgeText').value || null,
+    badge_color: $('fBadgeColor').value || null,
+    promo: $('fPromo').value || null,
+    website: $('fWebsite').value || null,
+    logo_url: $('fLogoUrl').value || null,
+    photo_url: $('fPhotoUrl').value || null,
+  } : null;
+
+  const payload = {
+    p_place_id: selected.id,
+    p_sponsor: sponsor,
+    p_name: $('fName').value || null,
+    p_type: selected.type || null,
+    p_cat: selected.cat || null,
+    p_addr: selected.addr || null,
+    p_lat: $('fLat').value ? parseFloat($('fLat').value) : null,
+    p_lng: $('fLng').value ? parseFloat($('fLng').value) : null,
+  };
+
+  const { error } = await supabase.rpc('admin_upsert_sponsor', payload);
+  if (error) { showMsg($('editMsg'), error.message, 'err'); return; }
+  showMsg($('editMsg'), 'Guardado ✅', 'ok');
+});
+
+$('btnRemove').addEventListener('click', async () => {
+  if (!selected || selected.isNew) return;
+  const { error } = await supabase.rpc('admin_remove_sponsor', { p_place_id: selected.id });
+  if (error) { showMsg($('editMsg'), error.message, 'err'); return; }
+  showMsg($('editMsg'), 'Sponsor quitado ✅', 'ok');
+  $('fTier').value = '';
+});
+</script>
+</body>
+</html>
