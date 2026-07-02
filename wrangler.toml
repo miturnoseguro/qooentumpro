@@ -1,0 +1,7 @@
+# Opcional: solo hace falta si vas a deployar con `npx wrangler pages deploy dist`
+# en vez de conectar el repo desde el dashboard de Cloudflare Pages (Git integration).
+# Si usás Git integration, este archivo se ignora y toda la config va en el dashboard
+# (ver README.md → sección Cloudflare Pages).
+name = "qooentum"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-01-01"
