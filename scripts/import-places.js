@@ -153,7 +153,11 @@ async function fetchOverpassTile(bbox, mirrorStart = 0) {
       const res = await fetch(mirror, {
         method: 'POST',
         body: 'data=' + encodeURIComponent(query),
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'QooentumPro-Import/1.0 (contacto: daniel.galan.romano@gmail.com)',
+          'Accept': 'application/json',
+        },
         signal: AbortSignal.timeout(OVERPASS_TIMEOUT_MS),
       });
       if (res.status === 429) { await sleep(5000 * (attempt + 1)); continue; }
