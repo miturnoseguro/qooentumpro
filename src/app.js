@@ -488,6 +488,13 @@ const osmToMeta = tags => {
     { match:{shop:'sports'}, emoji:'⚽', tipo:'Deportes', cat:'shopping' },
     { match:{shop:'furniture'}, emoji:'🛋️', tipo:'Mueblería', cat:'shopping' },
     { match:{shop:'stationery'}, emoji:'✏️', tipo:'Librería/Papelería', cat:'shopping' },
+    // Reglas genéricas que faltaban acá (sí estaban en scripts/import-places.js):
+    // sin esto, organismos públicos (office=government sin amenity), talleres/oficios
+    // (craft=*), turismo y oficinas en general quedaban afuera de la búsqueda en vivo.
+    { match:{healthcare:true}, emoji:'👨‍⚕️', tipo:'Salud', cat:'health' },
+    { match:{craft:true}, emoji:'🔨', tipo:'Taller/Oficio', cat:'shopping' },
+    { match:{tourism:true}, emoji:'🧳', tipo:'Turismo', cat:'shopping' },
+    { match:{office:true}, emoji:'🏢', tipo:'Oficina', cat:'shopping' },
     { match:{shop:true}, emoji:'🏪', tipo:'Comercio', cat:'shopping' },
     { match:{amenity:true}, emoji:'📍', tipo:'Lugar', cat:'other' },
     { match:{leisure:true}, emoji:'📍', tipo:'Lugar', cat:'other' },
@@ -503,63 +510,89 @@ const osmToMeta = tags => {
   return { emoji:'📍', tipo:'Lugar', cat:'other' };
 };
 // Pide a UN espejo puntual, respetando su propio intervalo mínimo.
-const overpassFetchMirror = async (url, query) => {
+// `signal` es opcional: si se pasa (ver cercaLoadPlaces), permite abortar el
+// pedido desde afuera cuando el usuario ya cambió de radio/zona, en vez de
+// dejarlo corriendo de fondo hasta el timeout de 20s.
+const overpassFetchMirror = async (url, query, signal) => {
   const now = Date.now();
   const last = _overpassMirrorLastReq[url] || 0;
   const elapsed = now - last;
   if (elapsed < OVERPASS_MIN_INTERVAL_PER_MIRROR) await new Promise(r => setTimeout(r, OVERPASS_MIN_INTERVAL_PER_MIRROR - elapsed));
+  if (signal?.aborted) throw new DOMException('aborted', 'AbortError');
   _overpassMirrorLastReq[url] = Date.now();
+  const timeoutSignal = AbortSignal.timeout(20000);
+  const combinedSignal = signal ? AbortSignal.any([timeoutSignal, signal]) : timeoutSignal;
   const res = await fetch(url, {
     method: 'POST',
     body: 'data=' + encodeURIComponent(query),
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    signal: AbortSignal.timeout(20000),
+    signal: combinedSignal,
   });
   if (res.status === 429) { _overpassMirrorLastReq[url] = Date.now() + 30000; throw new Error('429'); }
   if (!res.ok) throw new Error(String(res.status));
   return res.json();
 };
 // Corre todos los espejos en paralelo y devuelve el primero que responda ok.
-const overpassRate = async (query) => {
+const overpassRate = async (query, signal) => {
   try {
-    return await Promise.any(OVERPASS_MIRRORS.map(url => overpassFetchMirror(url, query)));
+    return await Promise.any(OVERPASS_MIRRORS.map(url => overpassFetchMirror(url, query, signal)));
   } catch (e) {
+    if (signal?.aborted) return null; // cancelado a propósito, no es un error real
     console.warn('[overpass] todos los espejos fallaron', e);
     return null;
   }
 };
-const overpassSearch = async (lat, lng, radiusM) => {
-  const key = `${Math.round(lat*400)}_${Math.round(lng*400)}`;
+const overpassSearch = async (lat, lng, radiusM, signal) => {
+  // La key ahora incluye el radio: antes un pedido a 1km quedaba cacheado y
+  // se reusaba tal cual al pasar a 100m (mismo lat/lng redondeado), mezclando
+  // resultados de radios distintos.
+  const r = Math.min(radiusM, 10000);
+  const key = `${Math.round(lat*400)}_${Math.round(lng*400)}_${r}`;
   const cached = OVERPASS_CACHE.get(key);
   if (cached && Date.now()-cached.ts < OVERPASS_CACHE_TTL) return cached.places;
-  const r = Math.min(radiusM, 10000);
+  // Catch-all igual criterio que scripts/import-places.js: pedimos cualquier
+  // node/way con "name" + alguno de estos tags "genéricos", sin filtrar por
+  // valor. Antes esto era una whitelist de ~25 valores puntuales de
+  // amenity/shop y por eso faltaban organismos públicos (office=government),
+  // talleres/oficios (craft=*), turismo, etc. osmToMeta() decide después
+  // cómo mostrar cada uno (emoji/tipo/categoría).
   const q = `[out:json][timeout:15];
 (
-  node["amenity"~"restaurant|cafe|fast_food|bar|pharmacy|hospital|clinic|bank|atm|post_office|fuel|bakery|dentist|doctors|social_facility|ice_cream|veterinary"](around:${r},${lat},${lng});
-  node["shop"~"supermarket|convenience|greengrocer|butcher|clothes|shoes|electronics|hardware|books|mobile_phone|hairdresser|beauty|laundry|bakery|money_lender|optician|pet|sports|furniture|stationery"](around:${r},${lat},${lng});
-  node["leisure"~"fitness_centre|sports_centre"](around:${r},${lat},${lng});
-  way["amenity"~"restaurant|cafe|fast_food|bar|pharmacy|hospital|clinic|bank|fuel|supermarket|veterinary"](around:${r},${lat},${lng});
-  way["shop"~"supermarket|convenience|hardware|sports|furniture"](around:${r},${lat},${lng});
-  way["leisure"~"fitness_centre|sports_centre"](around:${r},${lat},${lng});
+  node["name"]["shop"](around:${r},${lat},${lng});
+  node["name"]["amenity"](around:${r},${lat},${lng});
+  node["name"]["office"](around:${r},${lat},${lng});
+  node["name"]["leisure"](around:${r},${lat},${lng});
+  node["name"]["healthcare"](around:${r},${lat},${lng});
+  node["name"]["craft"](around:${r},${lat},${lng});
+  node["name"]["tourism"](around:${r},${lat},${lng});
+  way["name"]["shop"](around:${r},${lat},${lng});
+  way["name"]["amenity"](around:${r},${lat},${lng});
+  way["name"]["office"](around:${r},${lat},${lng});
+  way["name"]["leisure"](around:${r},${lat},${lng});
+  way["name"]["healthcare"](around:${r},${lat},${lng});
 );
-out center 60;`;
-  const data = await overpassRate(q);
+out center 80;`;
+  const data = await overpassRate(q, signal);
   if (!data) { const cached2 = OVERPASS_CACHE.get(key); return cached2 ? cached2.places : []; }
   const places = (data.elements||[])
     .map(el => {
-      const lat = el.lat ?? el.center?.lat ?? null;
-      const lng = el.lon ?? el.center?.lon ?? null;
-      if (lat==null || lng==null) return null;
+      // OJO: estas variables se llamaban antes "lat"/"lng", pisando el lat/lng
+      // del parámetro de la función. Eso hacía que dist() se calculara de cada
+      // lugar contra sí mismo (siempre 0), rompiendo el orden por cercanía y
+      // el filtro de radio de acá abajo. Renombradas para no pisar el scope.
+      const elLat = el.lat ?? el.center?.lat ?? null;
+      const elLng = el.lon ?? el.center?.lon ?? null;
+      if (elLat==null || elLng==null) return null;
       const tags = el.tags || {};
       const name = tags.name || tags['name:es'] || null;
       if (!name) return null;
       const meta = osmToMeta(tags);
-      const d = Math.round(dist(lat,lng, parseFloat(lat), parseFloat(lng)));
+      const d = Math.round(dist(lat, lng, parseFloat(elLat), parseFloat(elLng)));
       return {
         id: `osm-${el.type}-${el.id}`,
         name, type: meta.tipo, logo: meta.emoji, cat: meta.cat,
         addr: [tags['addr:street'], tags['addr:housenumber']].filter(Boolean).join(' ') || tags.address || '',
-        lat: parseFloat(lat), lng: parseFloat(lng), dist: d,
+        lat: parseFloat(elLat), lng: parseFloat(elLng), dist: d,
         status:0, reporters:0,
         rating: (3.5 + ((el.id%14)*0.1)).toFixed(1),
         reviewsN: 10 + (el.id%190),
