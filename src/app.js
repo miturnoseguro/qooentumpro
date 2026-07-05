@@ -1674,9 +1674,9 @@ const ppRenderBody = () => {
     <div style="padding:${T ? T.pad : '14px 14px 16px'};">
       <div style="display:flex;gap:6px;margin-bottom:12px;">
         ${[{val:place.reporters,lbl:'Reportes'}, {val:WAIT[place.status],lbl:'Espera'}, {val:TREND[place.status],lbl:'Tendencia'}].map(({val,lbl}) => `
-          <div style="flex:1;background:${T ? T.statBg : '#F1F5F9'};border:${T ? T.statBorder : 'none'};border-radius:9px;padding:6px 8px;text-align:center;">
-            <p style="margin:0;font-size:13px;font-weight:600;color:${T ? T.text : '#FFF'};letter-spacing:-0.2px;">${val}</p>
-            <p style="margin:1px 0 0;font-size:8px;color:${T ? T.text3 : '#64748B'};text-transform:uppercase;letter-spacing:0.4px;font-weight:600;">${lbl}</p>
+          <div style="flex:1;background:#0F0F11;border:1px solid rgba(255,255,255,0.08);border-radius:9px;padding:6px 8px;text-align:center;">
+            <p style="margin:0;font-size:13px;font-weight:600;color:#fff;letter-spacing:-0.2px;">${val}</p>
+            <p style="margin:1px 0 0;font-size:8px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:0.4px;font-weight:600;">${lbl}</p>
           </div>`).join('')}
       </div>
       ${promo ? `<div style="display:flex;align-items:center;gap:8px;background:${T ? `color-mix(in srgb, ${sponsorColor} 14%, transparent)` : `${sponsorColor}14`};border:1px solid ${sponsorColor}44;border-radius:10px;padding:8px 10px;margin-bottom:10px;">
