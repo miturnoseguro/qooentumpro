@@ -571,7 +571,7 @@ const overpassSearch = async (lat, lng, radiusM, signal) => {
   way["name"]["leisure"](around:${r},${lat},${lng});
   way["name"]["healthcare"](around:${r},${lat},${lng});
 );
-out center 200;`;
+out center 80;`;
   const data = await overpassRate(q, signal);
   if (!data) { const cached2 = OVERPASS_CACHE.get(key); return cached2 ? cached2.places : []; }
   const places = (data.elements||[])
@@ -601,7 +601,7 @@ out center 200;`;
     })
     .filter(p => p && p.dist <= radiusM)
     .sort((a,b) => a.dist - b.dist)
-    .slice(0, window.innerWidth < 768 ? 150 : 250);
+    .slice(0, window.innerWidth < 768 ? 80 : 150);
   OVERPASS_CACHE.set(key, { places, ts: Date.now() });
   return places;
 };
@@ -777,16 +777,13 @@ const _loadPlaces = async (lat,lng) => {
   }
   showPlacesLoading('Buscando comercios cercanos…');
   try {
-    // Supabase primero (una sola query PostGIS, rápida). Solo si devuelve
-    // pocos resultados —zona todavía sin importar via import-places.js—
-    // vamos también a Overpass/Geoapify en vivo, que es la parte lenta.
-    const MIN_BACKEND_RESULTS = 5;
-    const backend = BACKEND_READY ? await apiGet('sync_places', {lat,lng,radius:600}) : null;
-    const backendPlaces = backend?.places || [];
-    const osms = backendPlaces.length < MIN_BACKEND_RESULTS ? await searchPlaces(lat,lng,600) : [];
-    const bm = new Map(backendPlaces.map(p=>[p.id,p]));
+    const [osms, backend] = await Promise.all([
+      searchPlaces(lat,lng,600),
+      BACKEND_READY ? apiGet('sync_places', {lat,lng,radius:600}) : null,
+    ]);
+    const bm = new Map((backend?.places||[]).map(p=>[p.id,p]));
     const merged = osms.map(p => { const bp = bm.get(p.id); return bp ? {...p,...bp} : p; });
-    const onlyBackend = backendPlaces.filter(p => !osms.find(o=>o.id===p.id));
+    const onlyBackend = (backend?.places||[]).filter(p => !osms.find(o=>o.id===p.id));
     const all = [...merged, ...onlyBackend];
     const ids = [];
     all.forEach(p => { placeStore[p.id] = p; ids.push(p.id); });
@@ -948,28 +945,6 @@ const startGpsWatch = () => {
   );
 };
 
-// Prefetch real de 3km contra Supabase, una sola vez al conseguir el
-// primer fix de GPS. En vez de ir armando de a tiles de ~277m (radio
-// 600m), esto trae de golpe todo lo que haya en 3km a la redonda —
-// mucho más rápido si import-places.js ya corrió para la zona, porque
-// es UNA sola query PostGIS en vez de N tiles secuenciales. ensurePlaces()
-// sigue corriendo igual después para completar huecos puntuales / status.
-let _prefetch3kmDone = false;
-const prefetch3km = async (lat, lng) => {
-  if (_prefetch3kmDone || !BACKEND_READY) return;
-  _prefetch3kmDone = true;
-  try {
-    const backend = await apiGet('sync_places', { lat, lng, radius: 3000 });
-    if (!backend?.places?.length) return;
-    backend.places.forEach(p => { placeStore[p.id] = p; });
-    persistCache();
-    rebuildNearby(lat, lng);
-    buildMapMarkers(nearbyPlaces);
-  } catch (e) {
-    console.warn('[prefetch3km]', e);
-  }
-};
-
 const onGps = pos => {
   const {latitude:lat, longitude:lng, accuracy} = pos.coords;
   if (!validCoord(lat,lng)) return;
@@ -996,7 +971,6 @@ const onGps = pos => {
   if (!window._mapLoaded) {
     window._mapLoaded = true;
     window._lastTileKey = tileKey(lat,lng);
-    prefetch3km(lat,lng);
     ensurePlaces(lat,lng).then(() => maybeCheckin(lat,lng));
     updateGpsUI();
     cercaLoaded = false;
@@ -1833,24 +1807,8 @@ const guessCat = (name,type) => {
   if (l.includes('gobierno')||l.includes('municipal')||l.includes('correo')||l.includes('anses')) return 'government';
   return 'shopping';
 };
-const cercaShowSkeleton = (count = 6) => {
-  // Cards "fantasma" que se muestran al instante (0ms) mientras se
-  // resuelven las reales (Overpass/backend puede tardar 4-10s). Usan
-  // el CSS .nc-skeleton / .skel-anim que ya estaba en index.html.
-  const list = document.getElementById('cerca-list');
-  if (!list) return;
-  let html = '';
-  for (let i = 0; i < count; i++) {
-    html += `<div class="nc-skeleton" style="animation-delay:${Math.min(i*0.04,0.2)}s;">
-      <div class="nc-skel-logo skel-anim"></div>
-      <div class="nc-skel-body">
-        <div class="nc-skel-line skel-anim" style="width:${55 + (i%3)*10}%;"></div>
-        <div class="nc-skel-line skel-anim" style="width:${30 + (i%4)*8}%;height:8px;"></div>
-        <div class="nc-skel-block skel-anim" style="width:100%;"></div>
-      </div>
-    </div>`;
-  }
-  list.innerHTML = html;
+const cercaShowSkeleton = () => {
+  // Ya no se usa, pero se mantiene por si se necesitara.
 };
 const cercaApplyFilters = () => {
   let list = [...cercaAllPlaces];
@@ -1872,7 +1830,7 @@ const cercaRenderList = () => {
   document.getElementById('cerca-count-lbl').textContent = n === 1 ? ' lugar encontrado' : ' lugares encontrados';
   if (!n) {
     if (cercaLoading) {
-      cercaShowSkeleton();
+      list.innerHTML = `<div class="nc-empty"><div class="nc-empty-icon"><div class="search-spinner" style="margin:0 auto;width:20px;height:20px;"></div></div><div class="nc-empty-title" style="margin-top:8px;">Buscando comercios cercanos…</div><div class="nc-empty-sub">Esto puede tardar unos segundos.</div></div>`;
     } else {
       list.innerHTML = `<div class="nc-empty"><div class="nc-empty-icon">🔍</div><div class="nc-empty-title">Sin resultados</div><div class="nc-empty-sub">Probá aumentando el radio o cambiando el filtro.</div></div>`;
     }
