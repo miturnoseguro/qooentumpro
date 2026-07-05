@@ -164,7 +164,17 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
 .fc-card-wrap { display: flex; flex-direction: column; align-items: center; cursor: pointer; filter: drop-shadow(0 3px 10px rgba(15,23,42,.16)); transition: transform .2s cubic-bezier(.34,1.56,.64,1), filter .2s; }
 .fc-card-wrap:hover { transform: scale(1.04) translateY(-2px); filter: drop-shadow(0 7px 18px rgba(15,23,42,.22)); }
 .fc-card { width: 160px; background: rgba(255,255,255,.98); border: 1.5px solid var(--border); border-radius: 22px; padding: 5px 10px 8px; font-family: inherit; text-align: left; backdrop-filter: blur(8px); }
-.fc-card-wrap.is-sponsor .fc-card { background: linear-gradient( 134deg, color-mix(in srgb, #ffffff 20%, #fff) 0%, rgb(225 210 161) 55%); border-color: color-mix(in srgb, var(--sponsor-color, #6366F1) 45%, var(--border)); }
+.fc-card-wrap.is-sponsor .fc-card {  background: linear-gradient(
+    135deg,
+    #fdf6e3 0%,
+    #f0dfa8 20%,
+    #d4af37 45%,
+    #f5e4a8 60%,
+    #e8d5a0 100%
+  );
+  border: 1px solid #b8952e;
+  border-radius: 16px; /* igual que las otras cards */
+  box-shadow: 0 4px 14px rgba(212, 175, 55, 0.35); }
 .fc-card-head { display: flex; gap: 6px; align-items: center; }
 .fc-card-logo { position: relative; width: 24px; height: 24px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; overflow: visible; }
 .fc-card-logo img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }
