@@ -1528,7 +1528,7 @@ const ppRenderHeader = () => {
       <button id="pp-close-btn" style="position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.42);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;line-height:1;backdrop-filter:blur(8px);">✕</button>
       <div style="position:absolute;top:12px;left:12px;background:${s.color};border-radius:40px;padding:3px 9px;display:flex;align-items:center;gap:4px;">
         <span style="width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.55);display:inline-block;flex-shrink:0;"></span>
-        <span style="font-size:10px;font-weight:800;color:#fff;">${escHtml(s.label)}</span>
+        <span style="font-size:10px;font-weight:800;color:#1d1d1d;">${escHtml(s.label)}</span>
       </div>
       <div style="position:absolute;bottom:12px;left:12px;right:12px;display:flex;align-items:flex-end;gap:10px;">
         <div style="position:relative;flex-shrink:0;">
