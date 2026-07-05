@@ -1575,7 +1575,7 @@ const ppRenderBody = () => {
     <div style="display:flex;align-items:center;gap:10px;background:${T ? '#151517' : '#F1F5F9'};border:${T ? '1px solid rgba(212,175,55,.25)' : '1px solid #E2E8F0'};border-radius:12px;padding:10px 12px;margin-bottom:12px;">
       <span style="font-size:20px;flex-shrink:0;">📍</span>
       <div>
-        <p style="margin:0;font-size:13px;font-weight:800;color:${T ? T.text : '#0F172A'};">Estás a ${distTo}m de este comercio</p>
+        <p style="margin:0;font-size:13px;font-weight:800;color:${T ? T.text : '#FFF'};">Estás a ${distTo}m de este comercio</p>
         <p style="margin:2px 0 0;font-size:12px;color:${T ? T.text3 : '#64748B'};">Necesitás estar a menos de ${CONFIG.REPORT_RADIUS_M}m para reportar.</p>
       </div>
     </div>` : '';
