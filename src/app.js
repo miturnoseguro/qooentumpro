@@ -1501,8 +1501,8 @@ const ppComputed = () => {
     btnBg: '#151517', btnBorder: 'rgba(212,175,55,0.4)', pad: '13px 14px 16px',
   } : isPremium ? {
     cardBg: `linear-gradient(180deg, color-mix(in srgb, ${sponsorColor} 14%, #fff) 0%, rgba(29,29,29) 48%)`,
-    statBg: `color-mix(in srgb, ${sponsorColor} 9%, #fff)`, statBorder: `1px solid color-mix(in srgb, ${sponsorColor} 28%, var(--border))`,
-    text: '#fff', text2: '#475569', text3: '#64748B',
+    statBg: `color-mix(in srgb, ${sponsorColor} 90%, #fff)`, statBorder: `1px solid color-mix(in srgb, ${sponsorColor} 28%, var(--border))`,
+    text: '#0F172A', text2: '#475569', text3: '#64748B',
     btnBg: '#fff', btnBorder: '#E2E8F0', pad: '13px 14px 16px',
   } : null;
   const onCooldown = pp.cooldownMs > 0 && !pp.submitted;
@@ -1528,7 +1528,7 @@ const ppRenderHeader = () => {
       <button id="pp-close-btn" style="position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.42);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;line-height:1;backdrop-filter:blur(8px);">✕</button>
       <div style="position:absolute;top:12px;left:12px;background:${s.color};border-radius:40px;padding:3px 9px;display:flex;align-items:center;gap:4px;">
         <span style="width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.55);display:inline-block;flex-shrink:0;"></span>
-        <span style="font-size:10px;font-weight:800;color:#1d1d1d;">${escHtml(s.label)}</span>
+        <span style="font-size:10px;font-weight:800;color:#fff;">${escHtml(s.label)}</span>
       </div>
       <div style="position:absolute;bottom:12px;left:12px;right:12px;display:flex;align-items:flex-end;gap:10px;">
         <div style="position:relative;flex-shrink:0;">
