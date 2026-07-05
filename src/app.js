@@ -1501,7 +1501,7 @@ const ppComputed = () => {
     btnBg: '#151517', btnBorder: 'rgba(212,175,55,0.4)', pad: '13px 14px 16px',
   } : isPremium ? {
     cardBg: `linear-gradient(180deg, color-mix(in srgb, ${sponsorColor} 14%, #fff) 0%, rgba(29,29,29) 48%)`,
-    statBg: `color-mix(in srgb, ${sponsorColor} 90%, #fff)`, statBorder: `1px solid color-mix(in srgb, ${sponsorColor} 28%, var(--border))`,
+    statBg: `color-mix(in srgb, ${sponsorColor} 90%, #000)`, statBorder: `1px solid color-mix(in srgb, ${sponsorColor} 28%, var(--border))`,
     text: '#0F172A', text2: '#475569', text3: '#64748B',
     btnBg: '#fff', btnBorder: '#E2E8F0', pad: '13px 14px 16px',
   } : null;
