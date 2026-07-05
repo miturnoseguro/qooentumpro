@@ -1833,8 +1833,24 @@ const guessCat = (name,type) => {
   if (l.includes('gobierno')||l.includes('municipal')||l.includes('correo')||l.includes('anses')) return 'government';
   return 'shopping';
 };
-const cercaShowSkeleton = () => {
-  // Ya no se usa, pero se mantiene por si se necesitara.
+const cercaShowSkeleton = (count = 6) => {
+  // Cards "fantasma" que se muestran al instante (0ms) mientras se
+  // resuelven las reales (Overpass/backend puede tardar 4-10s). Usan
+  // el CSS .nc-skeleton / .skel-anim que ya estaba en index.html.
+  const list = document.getElementById('cerca-list');
+  if (!list) return;
+  let html = '';
+  for (let i = 0; i < count; i++) {
+    html += `<div class="nc-skeleton" style="animation-delay:${Math.min(i*0.04,0.2)}s;">
+      <div class="nc-skel-logo skel-anim"></div>
+      <div class="nc-skel-body">
+        <div class="nc-skel-line skel-anim" style="width:${55 + (i%3)*10}%;"></div>
+        <div class="nc-skel-line skel-anim" style="width:${30 + (i%4)*8}%;height:8px;"></div>
+        <div class="nc-skel-block skel-anim" style="width:100%;"></div>
+      </div>
+    </div>`;
+  }
+  list.innerHTML = html;
 };
 const cercaApplyFilters = () => {
   let list = [...cercaAllPlaces];
@@ -1856,7 +1872,7 @@ const cercaRenderList = () => {
   document.getElementById('cerca-count-lbl').textContent = n === 1 ? ' lugar encontrado' : ' lugares encontrados';
   if (!n) {
     if (cercaLoading) {
-      list.innerHTML = `<div class="nc-empty"><div class="nc-empty-icon"><div class="search-spinner" style="margin:0 auto;width:20px;height:20px;"></div></div><div class="nc-empty-title" style="margin-top:8px;">Buscando comercios cercanos…</div><div class="nc-empty-sub">Esto puede tardar unos segundos.</div></div>`;
+      cercaShowSkeleton();
     } else {
       list.innerHTML = `<div class="nc-empty"><div class="nc-empty-icon">🔍</div><div class="nc-empty-title">Sin resultados</div><div class="nc-empty-sub">Probá aumentando el radio o cambiando el filtro.</div></div>`;
     }
