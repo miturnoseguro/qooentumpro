@@ -21,7 +21,12 @@ const CONFIG = {
   FOLLOW_ZOOM: 18,
   CHECKIN_RADIUS_M: 150,
   SPONSOR_PIN_RADIUS_M: 100, // radio para "pinnear" la card de un sponsor Black arriba a la izquierda
-  TILE_DEG: 0.0025,
+  // Antes 0.0025 (~278m): cada ~280m de movimiento disparaba un ciclo completo
+  // de fetch a Supabase + rebuild de markers. Con ~670m el mismo ciclo se
+  // dispara con mucha menos frecuencia al caminar/arrastrar el mapa, sin
+  // perder cobertura (rebuildNearby usa este mismo valor para el radio de
+  // "cerca").
+  TILE_DEG: 0.006,
   BBOX_PAD: 0.0012,
   PLACE_CACHE_TTL_MS: 24 * 60 * 60 * 1000,
   VOTE_COOLDOWN_MS: 24 * 60 * 60 * 1000,
@@ -1243,9 +1248,34 @@ const _buildMarkers = (placesToShow) => {
   const isMobile = window.innerWidth < 768;
   const MAX = isMobile ? 60 : 150;
   const center = mlMap.getCenter();
-  const toRender = [...placesToShow]
-    .sort((a,b) => ((a.lat-center.lat)**2+(a.lng-center.lng)**2) - ((b.lat-center.lat)**2+(b.lng-center.lng)**2))
-    .slice(0, MAX);
+  const byDist = (a,b) => ((a.lat-center.lat)**2+(a.lng-center.lng)**2) - ((b.lat-center.lat)**2+(b.lng-center.lng)**2);
+
+  // Antes se ordenaba TODO por distancia al centro y se cortaban los N más
+  // cercanos: cualquier micro-movimiento cambiaba quién quedaba justo en el
+  // borde del corte, así que markers se destruían y volvían a crear todo el
+  // tiempo → eso era el titileo al moverse/zoomear.
+  //
+  // Ahora: se filtra por los bounds reales del viewport + un margen de
+  // buffer (25%) alrededor, y los markers que YA están en el mapa se
+  // priorizan para seguir estando (no se recalculan por distancia), así que
+  // solo entran/salen markers cuando de verdad quedan fuera del área visible
+  // + buffer, no por un empate de distancia.
+  const bounds = mlMap.getBounds();
+  const padLng = (bounds.getEast() - bounds.getWest()) * 0.25;
+  const padLat = (bounds.getNorth() - bounds.getSouth()) * 0.25;
+  const west = bounds.getWest() - padLng, east = bounds.getEast() + padLng;
+  const south = bounds.getSouth() - padLat, north = bounds.getNorth() + padLat;
+  const inView = placesToShow.filter(p => p.lng >= west && p.lng <= east && p.lat >= south && p.lat <= north);
+
+  const already = inView.filter(p => mlMarkers[p.id]);
+  const rest = inView.filter(p => !mlMarkers[p.id]);
+  let toRender;
+  if (already.length >= MAX) {
+    toRender = [...already].sort(byDist).slice(0, MAX);
+  } else {
+    const restSorted = [...rest].sort(byDist).slice(0, MAX - already.length);
+    toRender = [...already, ...restSorted];
+  }
   const renderIds = new Set(toRender.map(p => p.id));
 
   // Sacamos del mapa solo las cards que ya no corresponden (lugares que
@@ -1280,10 +1310,13 @@ const _buildMarkers = (placesToShow) => {
         return;
       }
       const el = makeMarker(p);
+      el.classList.add('fc-entering');
       el.addEventListener('click', () => { vibrate(10); selectPlaceInUI(p.id); if (pickModeActive) { exitPickMode(); openPopup(p); } else openPopup(p); });
       const marker = new maplibregl.Marker({ element:el, anchor:'bottom' }).setLngLat([p.lng,p.lat]).addTo(mlMap);
       mlMarkers[p.id] = { marker, el, _lastStatus:p.status, _lastReporters:p.reporters };
       if (pinnedSponsorPlace && pinnedSponsorPlace.id === p.id) el.style.visibility = 'hidden';
+      // Fade-in en vez de aparecer de golpe (ver .fc-entering en styles.css)
+      requestAnimationFrame(() => el.classList.remove('fc-entering'));
       renderedNew++;
     });
     if (pending > 0) {
@@ -1501,8 +1534,8 @@ const ppComputed = () => {
     btnBg: '#151517', btnBorder: 'rgba(212,175,55,0.4)', pad: '13px 14px 16px',
   } : isPremium ? {
     cardBg: `linear-gradient(180deg, color-mix(in srgb, ${sponsorColor} 14%, #fff) 0%, rgba(29,29,29) 48%)`,
-    statBg: `color-mix(in srgb, ${sponsorColor} 90%, #fff)`, statBorder: `1px solid color-mix(in srgb, ${sponsorColor} 28%, var(--border))`,
-    text: '#0F172A', text2: '#475569', text3: '#64748B',
+    statBg: `color-mix(in srgb, ${sponsorColor} 9%, #fff)`, statBorder: `1px solid color-mix(in srgb, ${sponsorColor} 28%, var(--border))`,
+    text: '#fff', text2: '#475569', text3: '#64748B',
     btnBg: '#fff', btnBorder: '#E2E8F0', pad: '13px 14px 16px',
   } : null;
   const onCooldown = pp.cooldownMs > 0 && !pp.submitted;
@@ -1641,7 +1674,7 @@ const ppRenderBody = () => {
     <div style="padding:${T ? T.pad : '14px 14px 16px'};">
       <div style="display:flex;gap:6px;margin-bottom:12px;">
         ${[{val:place.reporters,lbl:'Reportes'}, {val:WAIT[place.status],lbl:'Espera'}, {val:TREND[place.status],lbl:'Tendencia'}].map(({val,lbl}) => `
-          <div style="flex:1;background:${T ? T.statBg : '#000'};border:${T ? T.statBorder : 'none'};border-radius:9px;padding:6px 8px;text-align:center;">
+          <div style="flex:1;background:${T ? T.statBg : '#F1F5F9'};border:${T ? T.statBorder : 'none'};border-radius:9px;padding:6px 8px;text-align:center;">
             <p style="margin:0;font-size:13px;font-weight:600;color:${T ? T.text : '#FFF'};letter-spacing:-0.2px;">${val}</p>
             <p style="margin:1px 0 0;font-size:8px;color:${T ? T.text3 : '#64748B'};text-transform:uppercase;letter-spacing:0.4px;font-weight:600;">${lbl}</p>
           </div>`).join('')}

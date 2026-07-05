@@ -141,9 +141,15 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
 #maplibre-map { width: 100%; height: 100%; z-index: 1; touch-action: none; }
 
 /* ===== MARKERS ===== */
-.fc-card-wrap { display: flex; flex-direction: column; align-items: center; cursor: pointer; filter: drop-shadow(0 3px 10px rgba(15,23,42,.16)); transition: transform .2s cubic-bezier(.34,1.56,.64,1), filter .2s; }
-.fc-card-wrap:hover { transform: scale(1.04) translateY(-2px); filter: drop-shadow(0 7px 18px rgba(15,23,42,.22)); }
-.fc-card { width: 160px; background: rgba(255,255,255,.98); border: 1.5px solid var(--border); border-radius: 22px; padding: 5px 10px 8px; font-family: inherit; text-align: left; backdrop-filter: blur(8px); }
+.fc-card-wrap { display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform .2s cubic-bezier(.34,1.56,.64,1), opacity .18s ease; will-change: transform; opacity: 1; }
+.fc-card-wrap.fc-entering { opacity: 0; transform: scale(.85); }
+.fc-card-wrap:hover { transform: scale(1.04) translateY(-2px); }
+/* Antes: filter:drop-shadow + backdrop-filter:blur en cada card. Con hasta 150
+   markers en pantalla, esos dos efectos son carísimos de recomponer en cada
+   frame de zoom (el navegador no puede acelerarlos igual que un box-shadow
+   normal) — eran la causa principal del lag/tirón al hacer zoom. box-shadow
+   se ve prácticamente igual y es mucho más barato. */
+.fc-card { width: 160px; background: rgba(255,255,255,.98); border: 1.5px solid var(--border); border-radius: 22px; padding: 5px 10px 8px; font-family: inherit; text-align: left; box-shadow: 0 3px 10px rgba(15,23,42,.16); }
 .fc-card-wrap.is-sponsor .fc-card { background: linear-gradient(180deg, color-mix(in srgb, var(--sponsor-color, #6366F1) 10%, #fff) 0%, rgba(255,255,255,.98) 55%); border-color: color-mix(in srgb, var(--sponsor-color, #6366F1) 45%, var(--border)); }
 .fc-card-head { display: flex; gap: 6px; align-items: center; }
 .fc-card-logo { position: relative; width: 24px; height: 24px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; overflow: visible; }
@@ -163,9 +169,9 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
 .fc-base { width: 6px; height: 6px; border-radius: 50%; background: #CBD5E1; margin: 0 auto; }
 
 /* Clusters */
-.cluster-card { display: flex; flex-direction: column; align-items: center; cursor: pointer; filter: drop-shadow(0 3px 10px rgba(15,23,42,.18)); transition: transform .2s ease; }
+.cluster-card { display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform .2s ease; }
 .cluster-card:hover { transform: scale(1.05) translateY(-2px); }
-.cluster-bubble { background: rgba(255,255,255,.97); border: 2px solid var(--green); border-radius: 16px; padding: 6px 14px; display: flex; align-items: center; gap: 8px; font-family: inherit; min-width: 110px; box-shadow: 0 0 0 3px rgba(0,196,140,.12); }
+.cluster-bubble { background: rgba(255,255,255,.97); border: 2px solid var(--green); border-radius: 16px; padding: 6px 14px; display: flex; align-items: center; gap: 8px; font-family: inherit; min-width: 110px; box-shadow: 0 0 0 3px rgba(0,196,140,.12), 0 3px 10px rgba(15,23,42,.18); }
 .cluster-count { font-size: 20px; font-weight: 900; color: var(--green-dk); line-height: 1; }
 .cluster-label { font-size: 10px; font-weight: 700; color: var(--text2); line-height: 1.3; }
 .cluster-label strong { display: block; font-size: 11px; color: var(--text); font-weight: 800; }
