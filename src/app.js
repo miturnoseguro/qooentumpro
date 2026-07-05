@@ -1502,7 +1502,7 @@ const ppComputed = () => {
   } : isPremium ? {
     cardBg: `linear-gradient(180deg, color-mix(in srgb, ${sponsorColor} 14%, #fff) 0%, rgba(29,29,29) 48%)`,
     statBg: `color-mix(in srgb, ${sponsorColor} 9%, #fff)`, statBorder: `1px solid color-mix(in srgb, ${sponsorColor} 28%, var(--border))`,
-    text: '#0F172A', text2: '#475569', text3: '#64748B',
+    text: '#fff', text2: '#475569', text3: '#64748B',
     btnBg: '#fff', btnBorder: '#E2E8F0', pad: '13px 14px 16px',
   } : null;
   const onCooldown = pp.cooldownMs > 0 && !pp.submitted;
