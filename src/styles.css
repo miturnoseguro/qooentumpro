@@ -470,7 +470,7 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
 .nc-logo img { width: 100%; height: 100%; object-fit: contain; }
 .nc-body { flex: 1; min-width: 0; }
 .nc-top { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 2px; }
-.nc-name { font-size: 13px; font-weight: 800; color: var(--text); line-height: 1.2; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nc-name { font-size: 13px; font-weight: 800; color: var(--border); line-height: 1.2; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nc-badge-open { font-size: 8px; font-weight: 800; padding: 2px 6px; border-radius: 40px; flex-shrink: 0; margin-top: 2px; }
 .nc-badge-open.open { background: var(--green-lt); color: var(--green-dk); }
 .nc-badge-open.closed { background: var(--red-lt); color: var(--red); }
