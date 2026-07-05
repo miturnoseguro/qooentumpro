@@ -125,7 +125,7 @@ let placeStore = {}, tileCache = {}, nearbyPlaces = [];
 let userLat = null, userLng = null, gpsEverReceived = false, followMode = true;
 let mlMap = null, mlReady = false, mlMarkers = {}, mlClusterMarkers = [], mlUserMarker = null;
 let gpsWatchId = null, placeCooldowns = {};
-let currentPopupPlace = null, popupRoot = null;
+let currentPopupPlace = null;
 let cercaAllPlaces = [], cercaFiltered = [], cercaRadius=1000, cercaCat='all', cercaSearchQ='', cercaSortMode='distance', cercaSortIdx=0, cercaLoading=false;
 let cercaLoaded = false;
 let cercaReqId = 0; // usado para descartar respuestas de cargas viejas (evita el parpadeo al cambiar de radio rápido)
@@ -1451,7 +1451,6 @@ const runSearch = async (q, cfg) => {
 // ============================================================
 // REACT POPUP (resumido - igual que antes)
 // ============================================================
-const {useState, useEffect, useRef} = React;
 const PHOTOS = {
   default: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=400&q=70&fm=webp',
   Supermercado: 'https://images.unsplash.com/photo-1604719312566-8912e9c8a213?w=400&q=70&fm=webp',
@@ -1463,58 +1462,31 @@ const PHOTOS = {
   Hospital: 'https://images.unsplash.com/photo-1587351021759-3e566b6af7cc?w=400&q=70&fm=webp',
 };
 const getPhoto = p => p.sponsor?.photo_url || p.photo || PHOTOS[p.type] || PHOTOS.default;
-const getLogo = p => p.sponsor?.logo_url ? React.createElement('img', { src:p.sponsor.logo_url, alt:p.name, style:{width:'100%',height:'100%',objectFit:'contain',borderRadius:10} }) : p.logo;
+const getLogoHtml = p => p.sponsor?.logo_url
+  ? `<img src="${escAttr(p.sponsor.logo_url)}" alt="${escAttr(p.name)}" style="width:100%;height:100%;object-fit:contain;border-radius:10px;">`
+  : escHtml(p.logo || '🏪');
 const canReportPlace = p => userLat!=null && userLng!=null && dist(userLat,userLng,p.lat,p.lng) <= CONFIG.REPORT_RADIUS_M;
+const escHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const escAttr = escHtml;
 
-const PlacePopup = ({ place, onClose }) => {
-  const [visible, setVisible] = useState(false);
-  const [cardVisible, setCardVisible] = useState(false);
-  const [selected, setSelected] = useState(null);
-  const [submitted, setSubmitted] = useState(false);
-  const [cooldownMs, setCooldownMs] = useState(getCooldown(place.id));
-  const [imgLoaded, setImgLoaded] = useState(false);
-  const overlayRef = useRef(null);
-  const onCooldown = cooldownMs > 0 && !submitted;
-  const nearby = canReportPlace(place);
-  const hasGps = userLat!=null && userLng!=null;
-  const distTo = hasGps ? Math.round(dist(userLat,userLng,place.lat,place.lng)) : null;
+// ============================================================
+// POPUP DE REPORTE (vanilla JS — antes era un componente React;
+// se reescribió a mano para no depender de React/ReactDOM por CDN,
+// que solo se usaban para este popup y pesaban ~130KB sin necesidad).
+//
+// Estado del popup vive en `pp` (una sola instancia a la vez). El
+// overlay y la card son nodos DOM persistentes durante la vida del
+// popup (se crean una sola vez en ppOpen) para que las transiciones
+// CSS de fade/scale animen correctamente; el header (con la foto) y
+// el body (stats/botones) se re-renderizan por separado para que un
+// tick del cooldown (cada 1s) no reconstruya la imagen y la haga
+// parpadear.
+// ============================================================
+let pp = null; // { place, visible, cardVisible, selected, submitted, cooldownMs, imgLoaded, cooldownTimer }
 
-  useEffect(() => { requestAnimationFrame(() => { setVisible(true); setTimeout(() => setCardVisible(true), 40); }); }, []);
-  useEffect(() => {
-    if (cooldownMs <= 0) return;
-    const id = setInterval(() => setCooldownMs(ms => Math.max(0, ms-1000)), 1000);
-    return () => clearInterval(id);
-  }, [cooldownMs > 0]);
-
-  const handleClose = () => { setCardVisible(false); setVisible(false); setTimeout(onClose, 320); };
-  const handleOverlay = e => { if (e.target === overlayRef.current) handleClose(); };
-  const handleVote = idx => {
-    if (submitted || onCooldown || !nearby) return;
-    if (!isLoggedIn) { showToastAction('🔑 Iniciá sesión para reportar'); return; }
-    vibrate(8);
-    setSelected(idx);
-  };
-  const handleSubmit = async () => {
-    if (selected == null || submitted || onCooldown || !nearby) return;
-    if (!isLoggedIn) { showToastAction('🔑 Iniciá sesión para reportar'); return; }
-    setSubmitted(true);
-    vibrate(15);
-    applyCooldown(place.id);
-    place.status = selected;
-    place.reporters = (place.reporters || 0) + 1;
-    place.report_ts = Date.now();
-    placeStore[place.id] = place;
-    refreshMarker(place.id);
-    if (currentPopupPlace && currentPopupPlace.id === place.id) Object.assign(currentPopupPlace, place);
-    if (document.getElementById('panel-cerca').classList.contains('visible')) cercaApplyFilters();
-
-    const ok = await submitVote(place, selected);
-    if (ok) { flashPoints(); setCooldownMs(getCooldown(place.id)); }
-    setTimeout(handleClose, 900);
-  };
-
+const ppComputed = () => {
+  const place = pp.place;
   const s = getStatus(place);
-  const photo = getPhoto(place);
   const sponsor = place.sponsor || null;
   const isPremium = sponsor?.tier === 'premium';
   const isBlack = sponsor?.tier === 'black';
@@ -1522,224 +1494,302 @@ const PlacePopup = ({ place, onClose }) => {
   const badgeText = sponsor?.badge_text || (isBlack ? 'Black' : null);
   const promo = sponsor?.promo || null;
   const website = sponsor?.website || null;
-  // Paleta "gold premium" para comercios sponsor de nivel premium — mismo lineamiento que la mini card y la card de lista
   const T = isBlack ? {
     cardBg: `linear-gradient(180deg, #1a1a1d 0%, #0a0a0c 55%)`,
-    statBg: `rgba(212,175,55,0.08)`,
-    statBorder: `1px solid rgba(212,175,55,0.35)`,
-    text: '#F5F0E6',
-    text2: '#C9C2B4',
-    text3: '#9A9384',
-    btnBg: '#151517',
-    btnBorder: 'rgba(212,175,55,0.4)',
-    pad: '13px 14px 16px',
+    statBg: `rgba(212,175,55,0.08)`, statBorder: `1px solid rgba(212,175,55,0.35)`,
+    text: '#F5F0E6', text2: '#C9C2B4', text3: '#9A9384',
+    btnBg: '#151517', btnBorder: 'rgba(212,175,55,0.4)', pad: '13px 14px 16px',
   } : isPremium ? {
     cardBg: `linear-gradient(180deg, color-mix(in srgb, ${sponsorColor} 14%, #fff) 0%, rgba(29,29,29) 48%)`,
-    statBg: `color-mix(in srgb, ${sponsorColor} 9%, #fff)`,
-    statBorder: `1px solid color-mix(in srgb, ${sponsorColor} 28%, var(--border))`,
-    text: '#0F172A',
-    text2: '#475569',
-    text3: '#64748B',
-    btnBg: '#fff',
-    btnBorder: '#E2E8F0',
-    pad: '13px 14px 16px',
+    statBg: `color-mix(in srgb, ${sponsorColor} 9%, #fff)`, statBorder: `1px solid color-mix(in srgb, ${sponsorColor} 28%, var(--border))`,
+    text: '#0F172A', text2: '#475569', text3: '#64748B',
+    btnBg: '#fff', btnBorder: '#E2E8F0', pad: '13px 14px 16px',
   } : null;
+  const onCooldown = pp.cooldownMs > 0 && !pp.submitted;
+  const nearby = canReportPlace(place);
+  const hasGps = userLat != null && userLng != null;
+  const distTo = hasGps ? Math.round(dist(userLat, userLng, place.lat, place.lng)) : null;
+  return { place, s, sponsor, isPremium, isBlack, sponsorColor, badgeText, promo, website, T, onCooldown, nearby, hasGps, distTo };
+};
 
-  const overlayStyle = {
-    position:'fixed', inset:0,
-    background: `rgba(15,23,42,${visible ? '.62' : '0'})`,
-    backdropFilter: `blur(${visible ? '6px' : '0px'})`,
-    WebkitBackdropFilter: `blur(${visible ? '6px' : '0px'})`,
-    display:'flex', alignItems:'center', justifyContent:'center',
-    transition: 'background 0.3s ease, backdrop-filter 0.3s ease',
-    zIndex:10000, padding:'20px',
-  };
-  const cardStyle = {
-    width:'100%', maxWidth:'370px', background: T ? T.cardBg : '#fff', borderRadius:'22px',
-    overflow:'hidden',
-    boxShadow: (isPremium || isBlack) ? `0 24px 64px rgba(15,23,42,.22), 0 0 0 2px ${sponsorColor}60` : (sponsor ? `0 24px 64px rgba(15,23,42,.28), 0 0 0 2px ${sponsorColor}40` : '0 24px 64px rgba(15,23,42,.28)'),
-    transform: cardVisible ? 'translateY(0) scale(1)' : 'translateY(40px) scale(0.93)',
-    opacity: cardVisible ? 1 : 0,
-    transition: 'transform 0.38s cubic-bezier(0.34,1.56,0.64,1), opacity 0.28s ease',
-    maxHeight: 'calc(100dvh - 40px)', display:'flex', flexDirection:'column',
-  };
+const ppRenderHeader = () => {
+  const { place, s, isBlack, sponsorColor, badgeText } = ppComputed();
+  const photo = getPhoto(place);
+  const header = document.getElementById('pp-header');
+  if (!header) return;
+  header.innerHTML = `
+    <div style="position:relative;height:200px;flex-shrink:0;background:#E2E8F0;">
+      <img id="pp-img" src="${escAttr(photo)}" alt="${escAttr(place.name)}" loading="lazy"
+        style="width:100%;height:100%;object-fit:cover;display:block;opacity:${pp.imgLoaded?1:0};transition:opacity 0.4s ease;">
+      ${badgeText ? `<div style="position:absolute;top:12px;right:52px;background:${isBlack ? 'linear-gradient(135deg,#0A0A0C,#1c1c20)' : sponsorColor};border:${isBlack ? `1px solid ${SPONSOR_BLACK_ACCENT}` : 'none'};border-radius:40px;padding:3px 9px;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(0,0,0,.25);">
+        <span style="font-size:10px;font-weight:800;color:${isBlack ? SPONSOR_BLACK_ACCENT : '#fff'};letter-spacing:${isBlack?'.4px':'normal'};">${escHtml(badgeText)}</span>
+      </div>` : ''}
+      <div style="position:absolute;inset:0;background:linear-gradient(to bottom, rgba(0,0,0,0) 30%, rgba(0,0,0,0.68) 100%);"></div>
+      <button id="pp-close-btn" style="position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.42);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;line-height:1;backdrop-filter:blur(8px);">✕</button>
+      <div style="position:absolute;top:12px;left:12px;background:${s.color};border-radius:40px;padding:3px 9px;display:flex;align-items:center;gap:4px;">
+        <span style="width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.55);display:inline-block;flex-shrink:0;"></span>
+        <span style="font-size:10px;font-weight:800;color:#fff;">${escHtml(s.label)}</span>
+      </div>
+      <div style="position:absolute;bottom:12px;left:12px;right:12px;display:flex;align-items:flex-end;gap:10px;">
+        <div style="position:relative;flex-shrink:0;">
+          <div style="width:44px;height:44px;border-radius:14px;background:#fff;border:2.5px solid rgba(255,255,255,0.9);display:flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden;">${getLogoHtml(place)}</div>
+          ${place.verified ? `<div style="position:absolute;bottom:-3px;right:-3px;width:16px;height:16px;background:linear-gradient(135deg, ${sponsorColor}, color-mix(in srgb, ${sponsorColor} 55%, #fff));border-radius:50%;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:7px;color:#fff;font-weight:900;">✓</div>` : ''}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <p style="margin:0;font-size:15px;font-weight:800;color:#fff;line-height:1.2;text-shadow:0 1px 6px rgba(0,0,0,0.5);">${escHtml(place.name)}</p>
+          <p style="margin:2px 0 0;font-size:11px;color:rgba(255,255,255,0.82);text-shadow:0 1px 4px rgba(0,0,0,0.4);">${escHtml(place.type)} · ${escHtml(place.addr)}</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:3px;background:rgba(255,255,255,0.18);backdrop-filter:blur(8px);border:0.5px solid rgba(255,255,255,0.3);border-radius:40px;padding:3px 8px;flex-shrink:0;">
+          <span style="color:#F59E0B;font-size:11px;">★</span>
+          <span style="font-size:11px;font-weight:800;color:#fff;">${place.rating}</span>
+          <span style="font-size:10px;color:rgba(255,255,255,0.7);"> · ${place.reviewsN}</span>
+        </div>
+      </div>
+    </div>`;
+  const img = document.getElementById('pp-img');
+  if (img) {
+    img.addEventListener('load', () => { pp.imgLoaded = true; img.style.opacity = 1; }, { once: true });
+    img.addEventListener('error', e => { const fb = PHOTOS[place.type] || PHOTOS.default; if (e.target.src !== fb) e.target.src = fb; }, { once: true });
+  }
+  const closeBtn = document.getElementById('pp-close-btn');
+  if (closeBtn) closeBtn.addEventListener('click', ppClose);
+};
 
-  const tooFar = hasGps && !nearby && !onCooldown && React.createElement('div', { style:{display:'flex',alignItems:'center',gap:10,background: T ? '#151517' : '#F1F5F9',border: T ? '1px solid rgba(212,175,55,.25)' : '1px solid #E2E8F0',borderRadius:12,padding:'10px 12px',marginBottom:12} },
-    React.createElement('span', {style:{fontSize:20,flexShrink:0}},'📍'),
-    React.createElement('div', null,
-      React.createElement('p', {style:{margin:0,fontSize:13,fontWeight:800,color: T ? T.text : '#0F172A'}}, `Estás a ${distTo}m de este comercio`),
-      React.createElement('p', {style:{margin:'2px 0 0',fontSize:12,color: T ? T.text3 : '#64748B'}}, 'Necesitás estar a menos de '+CONFIG.REPORT_RADIUS_M+'m para reportar.')
-    )
-  );
-  const notLog = !isLoggedIn && !onCooldown && React.createElement('div', { style:{display:'flex',alignItems:'center',gap:10,background:'#F0FDF9',border:'1px solid #A8EDD8',borderRadius:12,padding:'10px 12px',marginBottom:12} },
-    React.createElement('span', {style:{fontSize:20,flexShrink:0}},'🔑'),
-    React.createElement('div', {style:{flex:1}},
-      React.createElement('p', {style:{margin:0,fontSize:13,fontWeight:800,color:'#007A59'}}, 'Iniciá sesión para reportar'),
-      React.createElement('p', {style:{margin:'2px 0 0',fontSize:12,color:'#047857'}}, 'Ganás puntos por cada reporte.')
-    ),
-    React.createElement('button', {
-      onClick: () => doGoogleLogin(document.getElementById('login-topbar-btn')),
-      style:{background:'linear-gradient(135deg,#00C48C,#009E72)',color:'#fff',border:'none',borderRadius:40,padding:'6px 12px',fontSize:12,fontWeight:800,cursor:'pointer',whiteSpace:'nowrap',fontFamily:'inherit'}
-    }, 'Ingresar')
-  );
+const ppRenderBody = () => {
+  const { place, sponsor, isBlack, sponsorColor, promo, website, T, onCooldown, nearby, hasGps, distTo } = ppComputed();
+  const { selected, submitted, cooldownMs } = pp;
+  const body = document.getElementById('pp-body');
+  if (!body) return;
 
-  return React.createElement('div', { ref:overlayRef, style:overlayStyle, onClick:handleOverlay },
-    React.createElement('div', { style:cardStyle },
-      React.createElement('div', { style:{overflowY:'auto',msOverflowStyle:'none',scrollbarWidth:'none'} },
-        React.createElement('div', { style:{position:'relative',height:'200px',flexShrink:0,background:'#E2E8F0'} },
-          React.createElement('img', {
-            src:photo, alt:place.name, loading:'lazy',
-            onLoad:()=>setImgLoaded(true),
-            onError:e => { const fb = PHOTOS[place.type] || PHOTOS.default; if (e.target.src !== fb) e.target.src = fb; },
-            style:{width:'100%',height:'100%',objectFit:'cover',display:'block',opacity:imgLoaded?1:0,transition:'opacity 0.4s ease'}
-          }),
-          badgeText && React.createElement('div', {style:{position:'absolute',top:12,right:52,background: isBlack ? `linear-gradient(135deg,#0A0A0C,#1c1c20)` : sponsorColor,border: isBlack ? `1px solid ${SPONSOR_BLACK_ACCENT}` : 'none',borderRadius:40,padding:'3px 9px',display:'flex',alignItems:'center',gap:4,boxShadow:'0 2px 8px rgba(0,0,0,.25)'}},
-            React.createElement('span', {style:{fontSize:10,fontWeight:800,color: isBlack ? SPONSOR_BLACK_ACCENT : '#fff',letterSpacing:isBlack?'.4px':'normal'}}, badgeText)
-          ),
-          React.createElement('div', { style:{position:'absolute',inset:0,background:'linear-gradient(to bottom, rgba(0,0,0,0) 30%, rgba(0,0,0,0.68) 100%)'} }),
-          React.createElement('button', {
-            onClick:handleClose,
-            style:{position:'absolute',top:12,right:12,width:32,height:32,borderRadius:'50%',background:'rgba(0,0,0,0.42)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:18,lineHeight:1,backdropFilter:'blur(8px)'}
-          }, '✕'),
-          React.createElement('div', { style:{position:'absolute',top:12,left:12,background:s.color,borderRadius:40,padding:'3px 9px',display:'flex',alignItems:'center',gap:4} },
-            React.createElement('span', {style:{width:5,height:5,borderRadius:'50%',background:'rgba(255,255,255,0.55)',display:'inline-block',flexShrink:0}}),
-            React.createElement('span', {style:{fontSize:10,fontWeight:800,color:'#fff'}}, s.label)
-          ),
-          React.createElement('div', { style:{position:'absolute',bottom:12,left:12,right:12,display:'flex',alignItems:'flex-end',gap:10} },
-            React.createElement('div', {style:{position:'relative',flexShrink:0}},
-              React.createElement('div', {style:{width:44,height:44,borderRadius:14,background:'#fff',border:'2.5px solid rgba(255,255,255,0.9)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,overflow:'hidden'}}, getLogo(place)),
-              place.verified && React.createElement('div', {style:{position:'absolute',bottom:-3,right:-3,width:16,height:16,background:`linear-gradient(135deg, ${sponsorColor}, color-mix(in srgb, ${sponsorColor} 55%, #fff))`,borderRadius:'50%',border:'2px solid #fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:7,color:'#fff',fontWeight:900}},'✓')
-            ),
-            React.createElement('div', {style:{flex:1,minWidth:0}},
-              React.createElement('p', {style:{margin:0,fontSize:15,fontWeight:800,color:'#fff',lineHeight:1.2,textShadow:'0 1px 6px rgba(0,0,0,0.5)'}}, place.name),
-              React.createElement('p', {style:{margin:'2px 0 0',fontSize:11,color:'rgba(255,255,255,0.82)',textShadow:'0 1px 4px rgba(0,0,0,0.4)'}}, place.type + ' · ' + place.addr)
-            ),
-            React.createElement('div', {style:{display:'flex',alignItems:'center',gap:3,background:'rgba(255,255,255,0.18)',backdropFilter:'blur(8px)',border:'0.5px solid rgba(255,255,255,0.3)',borderRadius:40,padding:'3px 8px',flexShrink:0}},
-              React.createElement('span', {style:{color:'#F59E0B',fontSize:11}},'★'),
-              React.createElement('span', {style:{fontSize:11,fontWeight:800,color:'#fff'}}, place.rating),
-              React.createElement('span', {style:{fontSize:10,color:'rgba(255,255,255,0.7)'}}, ' · ' + place.reviewsN)
-            )
-          )
-        ),
-        React.createElement('div', {style:{padding: T ? T.pad : '14px 14px 16px'}},
-          React.createElement('div', {style:{display:'flex',gap:6,marginBottom:12}},
-            ...[{val:place.reporters,lbl:'Reportes'}, {val:WAIT[place.status],lbl:'Espera'}, {val:TREND[place.status],lbl:'Tendencia'}].map(({val,lbl}) =>
-              React.createElement('div', {key:lbl,style:{flex:1,background: T ? T.statBg : '#F1F5F9',border: T ? T.statBorder : 'none',borderRadius:9,padding:'6px 8px',textAlign:'center'}},
-                React.createElement('p', {style:{margin:0,fontSize:13,fontWeight:600,color: T ? T.text : '#0F172A',letterSpacing:'-0.2px'}}, val),
-                React.createElement('p', {style:{margin:'1px 0 0',fontSize:8,color: T ? T.text3 : '#64748B',textTransform:'uppercase',letterSpacing:'0.4px',fontWeight:600}}, lbl)
-              )
-            )
-          ),
-          promo && React.createElement('div', {style:{display:'flex',alignItems:'center',gap:8,background: T ? `color-mix(in srgb, ${sponsorColor} 14%, transparent)` : `${sponsorColor}14`,border:`1px solid ${sponsorColor}44`,borderRadius:10,padding:'8px 10px',marginBottom:10}},
-            React.createElement('span', {style:{fontSize:16,flexShrink:0}},'🎁'),
-            React.createElement('span', {style:{fontSize:12,fontWeight:800,color:sponsorColor}}, promo)
-          ),
-          notLog, tooFar,
-          !hasGps && !onCooldown && React.createElement('div', {style:{display:'flex',alignItems:'center',gap:10,background:'#EEF2FF',border:'1px solid #C7D2FE',borderRadius:12,padding:'10px 12px',marginBottom:12}},
-            React.createElement('span', {style:{fontSize:20,flexShrink:0}},'🛰️'),
-            React.createElement('div', null,
-              React.createElement('p', {style:{margin:0,fontSize:13,fontWeight:800,color:'#3730A3'}}, 'Activá tu ubicación para reportar'),
-              React.createElement('p', {style:{margin:'2px 0 0',fontSize:12,color:'#4338CA'}}, 'Solo podés reportar si estás físicamente dentro del comercio.')
-            )
-          ),
-          isLoggedIn && nearby && !onCooldown && React.createElement('div', {style:{display:'flex',alignItems:'center',gap:7,marginBottom:10,padding:'7px 10px',background:'#E8FBF5',borderRadius:10,border:'1px solid #A8EDD8'}},
-            React.createElement('span', {style:{fontSize:14}},'✅'),
-            React.createElement('span', {style:{fontSize:12,fontWeight:700,color:'#007A59'}}, `Estás a ${distTo ?? '?'}m · podés reportar`)
-          ),
-          onCooldown && React.createElement('div', {style:{display:'flex',alignItems:'center',gap:10,background:'#FFFBEB',border:'1px solid #FDE68A',borderRadius:12,padding:'10px 12px',marginBottom:10}},
-            React.createElement('span', {style:{fontSize:20,flexShrink:0}},'⏳'),
-            React.createElement('div', null,
-              React.createElement('p', {style:{margin:0,fontSize:13,fontWeight:800,color:'#92400E'}}, `Ya reportaste ${place.name} hace poco`),
-              React.createElement('p', {style:{margin:'2px 0 0',fontSize:12,color:'#92400E'}}, `Podés volver a reportar en ${fmtCooldown(cooldownMs)}`)
-            )
-          ),
-          !submitted && isLoggedIn && nearby && !onCooldown && React.createElement('div', {style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:10}},
-            ...[{idx:0,label:'Poca gente',pts:'+10',color:'#00C48C'}, {idx:1,label:'Bastante',pts:'+10',color:'#F59E0B'}, {idx:2,label:'Mucha gente',pts:'+15',color:'#F97316'}, {idx:3,label:'Colapsado',pts:'+20',color:'#EF4444'}].map(({idx,label,pts,color}) => {
-              const isSel = selected === idx;
-              return React.createElement('button', {
-                key:idx,
-                onClick:()=>handleVote(idx),
-                style:{
-                  border: isSel ? `2px solid ${color}` : (T ? `1.5px solid ${T.btnBorder}` : '1.5px solid #E2E8F0'),
-                  borderRadius:10, background:isSel ? color : (T ? T.btnBg : '#fff'),
-                  padding:'9px 8px', cursor:'pointer',
-                  display:'flex', alignItems:'center', gap:6,
-                  fontSize:11, fontWeight:700,
-                  color: isSel ? '#fff' : (T ? T.text : '#0F172A'),
-                  textAlign:'left', fontFamily:'inherit',
-                  transition:'all 0.18s cubic-bezier(0.34,1.56,0.64,1)',
-                  transform: isSel ? 'translateY(-1px)' : 'none',
-                  boxShadow: isSel ? `0 4px 12px ${color}44` : 'none',
-                }
-              },
-                React.createElement('span', {style:{width:8,height:8,borderRadius:'50%',background: isSel ? 'rgba(255,255,255,0.55)' : color, display:'inline-block', flexShrink:0}}),
-                label,
-                React.createElement('span', {style:{marginLeft:'auto',fontSize:9,fontWeight:800,color:'#fff',background:color,padding:'1px 6px',borderRadius:40}}, pts)
-              );
-            })
-          ),
-          submitted && React.createElement('div', {style:{display:'flex',alignItems:'center',gap:10,background:'#E8FBF5',border:'1px solid #A8EDD8',borderRadius:12,padding:'11px 12px',marginBottom:10}},
-            React.createElement('span', {style:{fontSize:20}},'✅'),
-            React.createElement('div', null,
-              React.createElement('p', {style:{margin:0,fontSize:13,fontWeight:800,color:'#007A59'}}, '¡Reporte enviado!'),
-              React.createElement('p', {style:{margin:'2px 0 0',fontSize:11,color:'#047857'}}, `+${VOTE_PTS[selected] || 10} puntos sumados`)
-            )
-          ),
-          !submitted && isLoggedIn && nearby && !onCooldown && React.createElement('button', {
-            onClick:handleSubmit,
-            disabled: selected == null,
-            style:{
-              width:'100%',
-              background: selected != null ? `linear-gradient(135deg, ${STATUS_CFG[selected].color}, ${STATUS_CFG[selected].color}cc)` : (T ? T.btnBg : '#E2E8F0'),
-              color: selected != null ? '#fff' : (T ? T.text3 : '#94A3B8'),
-              border:'none', borderRadius:12, padding:'12px',
-              fontSize:13, fontWeight:800,
-              cursor: selected != null ? 'pointer' : 'not-allowed',
-              display:'flex', alignItems:'center', justifyContent:'center', gap:6,
-              fontFamily:'inherit', transition:'all 0.22s',
-              boxShadow: selected != null ? `0 6px 20px ${STATUS_CFG[selected].color}44` : 'none',
-              transform: selected != null ? 'translateY(-1px)' : 'none',
-            }
-          }, 'Reportar estado'),
-          React.createElement('p', {style:{margin:'8px 0 0',fontSize:10,color: T ? T.text3 : '#94A3B8',display:'flex',alignItems:'center',gap:4,fontWeight:500}},
-            React.createElement('svg', {viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round',style:{width:11,height:11,flexShrink:0}},
-              React.createElement('path', {d:'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2'}),
-              React.createElement('circle', {cx:9,cy:7,r:4}),
-              React.createElement('path', {d:'M23 21v-2a4 4 0 0 0-3-3.87'}),
-              React.createElement('path', {d:'M16 3.13a4 4 0 0 1 0 7.75'})
-            ),
-            `${place.reporters} reportes en las últimas 2h`
-          ),
-          website && React.createElement('a', {
-            href: website, target:'_blank', rel:'noopener noreferrer',
-            style:{
-              display:'block', marginTop:10, fontSize:11.5, fontWeight:800,
-              color: isBlack ? SPONSOR_BLACK_ACCENT : BRAND_GREEN, textAlign:'center', textDecoration:'none',
-              border:`1.5px solid ${isBlack ? SPONSOR_BLACK_ACCENT : BRAND_GREEN}`, borderRadius:40,
-              padding:'9px 14px',
-              background: isBlack ? 'rgba(212,175,55,0.08)' : `${BRAND_GREEN}0D`,
-              letterSpacing:'.2px',
-            }
-          }, website.replace(/^https?:\/\//,'').replace(/\/$/,''))
-        )
-      )
-    )
-  );
+  const notLogHtml = (!isLoggedIn && !onCooldown) ? `
+    <div style="display:flex;align-items:center;gap:10px;background:#F0FDF9;border:1px solid #A8EDD8;border-radius:12px;padding:10px 12px;margin-bottom:12px;">
+      <span style="font-size:20px;flex-shrink:0;">🔑</span>
+      <div style="flex:1;">
+        <p style="margin:0;font-size:13px;font-weight:800;color:#007A59;">Iniciá sesión para reportar</p>
+        <p style="margin:2px 0 0;font-size:12px;color:#047857;">Ganás puntos por cada reporte.</p>
+      </div>
+      <button id="pp-login-btn" style="background:linear-gradient(135deg,#00C48C,#009E72);color:#fff;border:none;border-radius:40px;padding:6px 12px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;font-family:inherit;">Ingresar</button>
+    </div>` : '';
+
+  const tooFarHtml = (hasGps && !nearby && !onCooldown) ? `
+    <div style="display:flex;align-items:center;gap:10px;background:${T ? '#151517' : '#F1F5F9'};border:${T ? '1px solid rgba(212,175,55,.25)' : '1px solid #E2E8F0'};border-radius:12px;padding:10px 12px;margin-bottom:12px;">
+      <span style="font-size:20px;flex-shrink:0;">📍</span>
+      <div>
+        <p style="margin:0;font-size:13px;font-weight:800;color:${T ? T.text : '#0F172A'};">Estás a ${distTo}m de este comercio</p>
+        <p style="margin:2px 0 0;font-size:12px;color:${T ? T.text3 : '#64748B'};">Necesitás estar a menos de ${CONFIG.REPORT_RADIUS_M}m para reportar.</p>
+      </div>
+    </div>` : '';
+
+  const noGpsHtml = (!hasGps && !onCooldown) ? `
+    <div style="display:flex;align-items:center;gap:10px;background:#EEF2FF;border:1px solid #C7D2FE;border-radius:12px;padding:10px 12px;margin-bottom:12px;">
+      <span style="font-size:20px;flex-shrink:0;">🛰️</span>
+      <div>
+        <p style="margin:0;font-size:13px;font-weight:800;color:#3730A3;">Activá tu ubicación para reportar</p>
+        <p style="margin:2px 0 0;font-size:12px;color:#4338CA;">Solo podés reportar si estás físicamente dentro del comercio.</p>
+      </div>
+    </div>` : '';
+
+  const nearOkHtml = (isLoggedIn && nearby && !onCooldown) ? `
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;padding:7px 10px;background:#E8FBF5;border-radius:10px;border:1px solid #A8EDD8;">
+      <span style="font-size:14px;">✅</span>
+      <span style="font-size:12px;font-weight:700;color:#007A59;">Estás a ${distTo ?? '?'}m · podés reportar</span>
+    </div>` : '';
+
+  const cooldownHtml = onCooldown ? `
+    <div style="display:flex;align-items:center;gap:10px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:10px 12px;margin-bottom:10px;">
+      <span style="font-size:20px;flex-shrink:0;">⏳</span>
+      <div>
+        <p style="margin:0;font-size:13px;font-weight:800;color:#92400E;">Ya reportaste ${escHtml(place.name)} hace poco</p>
+        <p style="margin:2px 0 0;font-size:12px;color:#92400E;">Podés volver a reportar en ${fmtCooldown(cooldownMs)}</p>
+      </div>
+    </div>` : '';
+
+  const voteOptions = [
+    { idx: 0, label: 'Poca gente', pts: '+10', color: '#00C48C' },
+    { idx: 1, label: 'Bastante', pts: '+10', color: '#F59E0B' },
+    { idx: 2, label: 'Mucha gente', pts: '+15', color: '#F97316' },
+    { idx: 3, label: 'Colapsado', pts: '+20', color: '#EF4444' },
+  ];
+  const votesHtml = (!submitted && isLoggedIn && nearby && !onCooldown) ? `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
+      ${voteOptions.map(({idx,label,pts,color}) => {
+        const isSel = selected === idx;
+        return `<button class="pp-vote-btn" data-idx="${idx}" style="border:${isSel ? `2px solid ${color}` : (T ? `1.5px solid ${T.btnBorder}` : '1.5px solid #E2E8F0')};border-radius:10px;background:${isSel ? color : (T ? T.btnBg : '#fff')};padding:9px 8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:${isSel ? '#fff' : (T ? T.text : '#0F172A')};text-align:left;font-family:inherit;transition:all 0.18s cubic-bezier(0.34,1.56,0.64,1);transform:${isSel ? 'translateY(-1px)' : 'none'};box-shadow:${isSel ? `0 4px 12px ${color}44` : 'none'};">
+          <span style="width:8px;height:8px;border-radius:50%;background:${isSel ? 'rgba(255,255,255,0.55)' : color};display:inline-block;flex-shrink:0;"></span>
+          ${escHtml(label)}
+          <span style="margin-left:auto;font-size:9px;font-weight:800;color:#fff;background:${color};padding:1px 6px;border-radius:40px;">${pts}</span>
+        </button>`;
+      }).join('')}
+    </div>` : '';
+
+  const submittedHtml = submitted ? `
+    <div style="display:flex;align-items:center;gap:10px;background:#E8FBF5;border:1px solid #A8EDD8;border-radius:12px;padding:11px 12px;margin-bottom:10px;">
+      <span style="font-size:20px;">✅</span>
+      <div>
+        <p style="margin:0;font-size:13px;font-weight:800;color:#007A59;">¡Reporte enviado!</p>
+        <p style="margin:2px 0 0;font-size:11px;color:#047857;">+${VOTE_PTS[selected] || 10} puntos sumados</p>
+      </div>
+    </div>` : '';
+
+  const submitBtnHtml = (!submitted && isLoggedIn && nearby && !onCooldown) ? `
+    <button id="pp-submit-btn" ${selected == null ? 'disabled' : ''} style="width:100%;background:${selected != null ? `linear-gradient(135deg, ${STATUS_CFG[selected].color}, ${STATUS_CFG[selected].color}cc)` : (T ? T.btnBg : '#E2E8F0')};color:${selected != null ? '#fff' : (T ? T.text3 : '#94A3B8')};border:none;border-radius:12px;padding:12px;font-size:13px;font-weight:800;cursor:${selected != null ? 'pointer' : 'not-allowed'};display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;transition:all 0.22s;box-shadow:${selected != null ? `0 6px 20px ${STATUS_CFG[selected].color}44` : 'none'};transform:${selected != null ? 'translateY(-1px)' : 'none'};">Reportar estado</button>` : '';
+
+  const websiteHtml = website ? `
+    <a href="${escAttr(website)}" target="_blank" rel="noopener noreferrer" style="display:block;margin-top:10px;font-size:11.5px;font-weight:800;color:${isBlack ? SPONSOR_BLACK_ACCENT : BRAND_GREEN};text-align:center;text-decoration:none;border:1.5px solid ${isBlack ? SPONSOR_BLACK_ACCENT : BRAND_GREEN};border-radius:40px;padding:9px 14px;background:${isBlack ? 'rgba(212,175,55,0.08)' : `${BRAND_GREEN}0D`};letter-spacing:.2px;">${escHtml(website.replace(/^https?:\/\//,'').replace(/\/$/,''))}</a>` : '';
+
+  body.innerHTML = `
+    <div style="padding:${T ? T.pad : '14px 14px 16px'};">
+      <div style="display:flex;gap:6px;margin-bottom:12px;">
+        ${[{val:place.reporters,lbl:'Reportes'}, {val:WAIT[place.status],lbl:'Espera'}, {val:TREND[place.status],lbl:'Tendencia'}].map(({val,lbl}) => `
+          <div style="flex:1;background:${T ? T.statBg : '#F1F5F9'};border:${T ? T.statBorder : 'none'};border-radius:9px;padding:6px 8px;text-align:center;">
+            <p style="margin:0;font-size:13px;font-weight:600;color:${T ? T.text : '#0F172A'};letter-spacing:-0.2px;">${val}</p>
+            <p style="margin:1px 0 0;font-size:8px;color:${T ? T.text3 : '#64748B'};text-transform:uppercase;letter-spacing:0.4px;font-weight:600;">${lbl}</p>
+          </div>`).join('')}
+      </div>
+      ${promo ? `<div style="display:flex;align-items:center;gap:8px;background:${T ? `color-mix(in srgb, ${sponsorColor} 14%, transparent)` : `${sponsorColor}14`};border:1px solid ${sponsorColor}44;border-radius:10px;padding:8px 10px;margin-bottom:10px;">
+        <span style="font-size:16px;flex-shrink:0;">🎁</span>
+        <span style="font-size:12px;font-weight:800;color:${sponsorColor};">${escHtml(promo)}</span>
+      </div>` : ''}
+      ${notLogHtml}${tooFarHtml}${noGpsHtml}${nearOkHtml}${cooldownHtml}${votesHtml}${submittedHtml}${submitBtnHtml}
+      <p style="margin:8px 0 0;font-size:10px;color:${T ? T.text3 : '#94A3B8'};display:flex;align-items:center;gap:4px;font-weight:500;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px;flex-shrink:0;">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        ${place.reporters} reportes en las últimas 2h
+      </p>
+      ${websiteHtml}
+    </div>`;
+
+  const loginBtn = document.getElementById('pp-login-btn');
+  if (loginBtn) loginBtn.addEventListener('click', () => doGoogleLogin(document.getElementById('login-topbar-btn')));
+  body.querySelectorAll('.pp-vote-btn').forEach(btn => {
+    btn.addEventListener('click', () => ppHandleVote(parseInt(btn.dataset.idx, 10)));
+  });
+  const submitBtn = document.getElementById('pp-submit-btn');
+  if (submitBtn) submitBtn.addEventListener('click', ppHandleSubmit);
+};
+
+const ppHandleVote = idx => {
+  const { onCooldown, nearby } = ppComputed();
+  if (pp.submitted || onCooldown || !nearby) return;
+  if (!isLoggedIn) { showToastAction('🔑 Iniciá sesión para reportar'); return; }
+  vibrate(8);
+  pp.selected = idx;
+  ppRenderBody();
+};
+
+const ppHandleSubmit = async () => {
+  const { onCooldown, nearby } = ppComputed();
+  if (pp.selected == null || pp.submitted || onCooldown || !nearby) return;
+  if (!isLoggedIn) { showToastAction('🔑 Iniciá sesión para reportar'); return; }
+  const place = pp.place;
+  pp.submitted = true;
+  ppRenderBody();
+  vibrate(15);
+  applyCooldown(place.id);
+  place.status = pp.selected;
+  place.reporters = (place.reporters || 0) + 1;
+  place.report_ts = Date.now();
+  placeStore[place.id] = place;
+  refreshMarker(place.id);
+  if (currentPopupPlace && currentPopupPlace.id === place.id) Object.assign(currentPopupPlace, place);
+  if (document.getElementById('panel-cerca').classList.contains('visible')) cercaApplyFilters();
+
+  const ok = await submitVote(place, pp.selected);
+  if (ok) {
+    flashPoints();
+    pp.cooldownMs = getCooldown(place.id);
+    ppStartCooldownTimer();
+    ppRenderBody();
+  }
+  setTimeout(ppClose, 900);
+};
+
+const ppStartCooldownTimer = () => {
+  if (pp.cooldownTimer) clearInterval(pp.cooldownTimer);
+  if (pp.cooldownMs <= 0) return;
+  pp.cooldownTimer = setInterval(() => {
+    if (!pp) return;
+    pp.cooldownMs = Math.max(0, pp.cooldownMs - 1000);
+    ppRenderBody();
+    if (pp.cooldownMs <= 0) { clearInterval(pp.cooldownTimer); pp.cooldownTimer = null; }
+  }, 1000);
 };
 
 const openPopup = place => {
   currentPopupPlace = place;
+  pp = { place, visible: false, cardVisible: false, selected: null, submitted: false, cooldownMs: getCooldown(place.id), imgLoaded: false, cooldownTimer: null };
+
   const container = document.getElementById('react-popup-root');
   container.classList.add('active');
-  if (!popupRoot) popupRoot = ReactDOM.createRoot(container);
-  popupRoot.render(React.createElement(PlacePopup, { place, onClose: closePopup }));
+  container.innerHTML = `
+    <div id="pp-overlay" style="position:fixed;inset:0;background:rgba(15,23,42,0);backdrop-filter:blur(0px);-webkit-backdrop-filter:blur(0px);display:flex;align-items:center;justify-content:center;transition:background 0.3s ease, backdrop-filter 0.3s ease;z-index:10000;padding:20px;">
+      <div id="pp-card" style="width:100%;max-width:370px;border-radius:22px;overflow:hidden;transform:translateY(40px) scale(0.93);opacity:0;transition:transform 0.38s cubic-bezier(0.34,1.56,0.64,1), opacity 0.28s ease;max-height:calc(100dvh - 40px);display:flex;flex-direction:column;">
+        <div style="overflow-y:auto;-ms-overflow-style:none;scrollbar-width:none;">
+          <div id="pp-header"></div>
+          <div id="pp-body"></div>
+        </div>
+      </div>
+    </div>`;
+
+  ppApplyCardTheme();
+  ppRenderHeader();
+  ppRenderBody();
+  ppStartCooldownTimer();
+
+  const overlay = document.getElementById('pp-overlay');
+  overlay.addEventListener('click', e => { if (e.target === overlay) ppClose(); });
+
+  requestAnimationFrame(() => {
+    pp.visible = true;
+    overlay.style.background = 'rgba(15,23,42,.62)';
+    overlay.style.backdropFilter = 'blur(6px)';
+    overlay.style.webkitBackdropFilter = 'blur(6px)';
+    setTimeout(() => {
+      if (!pp) return;
+      pp.cardVisible = true;
+      const card = document.getElementById('pp-card');
+      if (card) { card.style.transform = 'translateY(0) scale(1)'; card.style.opacity = 1; }
+    }, 40);
+  });
 };
+
+// Aplica el fondo/sombra de la card según el sponsor (esto no cambia
+// con el estado del popup, solo con los datos del place).
+const ppApplyCardTheme = () => {
+  if (!pp) return;
+  const { sponsor, isPremium, isBlack, sponsorColor, T } = ppComputed();
+  const card = document.getElementById('pp-card');
+  if (!card) return;
+  card.style.background = T ? T.cardBg : '#fff';
+  card.style.boxShadow = (isPremium || isBlack)
+    ? `0 24px 64px rgba(15,23,42,.22), 0 0 0 2px ${sponsorColor}60`
+    : (sponsor ? `0 24px 64px rgba(15,23,42,.28), 0 0 0 2px ${sponsorColor}40` : '0 24px 64px rgba(15,23,42,.28)');
+};
+
+const ppClose = () => {
+  if (!pp) return;
+  if (pp.cooldownTimer) clearInterval(pp.cooldownTimer);
+  pp.cardVisible = false; pp.visible = false;
+  const overlay = document.getElementById('pp-overlay');
+  const card = document.getElementById('pp-card');
+  if (card) { card.style.transform = 'translateY(40px) scale(0.93)'; card.style.opacity = 0; }
+  if (overlay) { overlay.style.background = 'rgba(15,23,42,0)'; overlay.style.backdropFilter = 'blur(0px)'; overlay.style.webkitBackdropFilter = 'blur(0px)'; }
+  setTimeout(closePopup, 320);
+};
+
 const closePopup = () => {
   const container = document.getElementById('react-popup-root');
   container.classList.remove('active');
-  if (popupRoot) popupRoot.render(null);
+  container.innerHTML = '';
+  if (pp?.cooldownTimer) clearInterval(pp.cooldownTimer);
+  pp = null;
   currentPopupPlace = null;
 };
+
 
 const submitVote = async (place, statusIdx) => {
   const pts = VOTE_PTS[statusIdx];
@@ -1786,10 +1836,32 @@ const cercaLoadPlaces = async () => {
   if (_updLbl1) _updLbl1.textContent = cached ? `Actualizado ${cached.label}` : 'Actualizado ahora';
   if (cercaLoading) showPlacesLoading('Cargando establecimientos…', 'cerca-loading-pill', 'cerca-loading-text');
 
-  // 2. Cargar reales en segundo plano
+  // 2. Cargar reales en segundo plano.
+  //    Mismo criterio que _loadPlaces(): Supabase/PostGIS primero (UNA
+  //    sola query rápida contra lo ya importado con import-places.js),
+  //    y solo si ahí tampoco hay suficiente densidad, recién ahí se va
+  //    a buscar en vivo a Overpass/Geoapify — que es la parte que tarda
+  //    los 4-10s, porque son requests a APIs externas desde el navegador.
+  const MIN_LOCAL_RESULTS = 5;
   let data = Object.values(placeStore)
     .filter(p => validCoord(p.lat,p.lng) && dist(lat,lng,p.lat,p.lng) <= radiusAtStart)
     .map(p => ({ ...p, dist: Math.round(dist(lat,lng,p.lat,p.lng)), cat: p.cat || guessCat(p.name,p.type) }));
+
+  if (data.length < MIN_LOCAL_RESULTS && BACKEND_READY) {
+    try {
+      const backendFull = await apiGet('sync_places', { lat, lng, radius: radiusAtStart });
+      if (myReq !== cercaReqId) return; // idem: descartar si ya no es la carga vigente
+      if (backendFull?.places?.length) {
+        backendFull.places.forEach(p => { placeStore[p.id] = p; });
+        data = Object.values(placeStore)
+          .filter(p => validCoord(p.lat,p.lng) && dist(lat,lng,p.lat,p.lng) <= radiusAtStart)
+          .map(p => ({ ...p, dist: Math.round(dist(lat,lng,p.lat,p.lng)), cat: p.cat || guessCat(p.name,p.type) }));
+      }
+    } catch (e) {
+      console.warn('[cercaLoadPlaces] sync_places falló, sigue a Overpass/Geoapify', e);
+    }
+  }
+
   if (data.length < 3) {
     const fetched = await searchPlaces(lat, lng, radiusAtStart);
     data = fetched.map(p => ({ ...p, dist: Math.round(dist(lat,lng,p.lat,p.lng)), cat: p.cat || guessCat(p.name,p.type) }));
@@ -1833,8 +1905,24 @@ const guessCat = (name,type) => {
   if (l.includes('gobierno')||l.includes('municipal')||l.includes('correo')||l.includes('anses')) return 'government';
   return 'shopping';
 };
-const cercaShowSkeleton = () => {
-  // Ya no se usa, pero se mantiene por si se necesitara.
+const cercaShowSkeleton = (count = 6) => {
+  // Cards "fantasma" que se muestran al instante (0ms) mientras se
+  // resuelven las reales (Overpass/backend puede tardar 4-10s). Usan
+  // el CSS .nc-skeleton / .skel-anim que ya estaba en index.html.
+  const list = document.getElementById('cerca-list');
+  if (!list) return;
+  let html = '';
+  for (let i = 0; i < count; i++) {
+    html += `<div class="nc-skeleton" style="animation-delay:${Math.min(i*0.04,0.2)}s;">
+      <div class="nc-skel-logo skel-anim"></div>
+      <div class="nc-skel-body">
+        <div class="nc-skel-line skel-anim" style="width:${55 + (i%3)*10}%;"></div>
+        <div class="nc-skel-line skel-anim" style="width:${30 + (i%4)*8}%;height:8px;"></div>
+        <div class="nc-skel-block skel-anim" style="width:100%;"></div>
+      </div>
+    </div>`;
+  }
+  list.innerHTML = html;
 };
 const cercaApplyFilters = () => {
   let list = [...cercaAllPlaces];
@@ -1856,7 +1944,7 @@ const cercaRenderList = () => {
   document.getElementById('cerca-count-lbl').textContent = n === 1 ? ' lugar encontrado' : ' lugares encontrados';
   if (!n) {
     if (cercaLoading) {
-      list.innerHTML = `<div class="nc-empty"><div class="nc-empty-icon"><div class="search-spinner" style="margin:0 auto;width:20px;height:20px;"></div></div><div class="nc-empty-title" style="margin-top:8px;">Buscando comercios cercanos…</div><div class="nc-empty-sub">Esto puede tardar unos segundos.</div></div>`;
+      cercaShowSkeleton();
     } else {
       list.innerHTML = `<div class="nc-empty"><div class="nc-empty-icon">🔍</div><div class="nc-empty-title">Sin resultados</div><div class="nc-empty-sub">Probá aumentando el radio o cambiando el filtro.</div></div>`;
     }
@@ -2230,8 +2318,16 @@ const exitPickMode = () => {
   document.getElementById('maplibre-map').style.cursor = '';
 };
 const renderPopup = () => {
-  if (!popupRoot || !currentPopupPlace) return;
-  popupRoot.render(React.createElement(PlacePopup, { place: currentPopupPlace, onClose: closePopup }));
+  // Llamado desde el sync en tiempo real cuando cambian los datos del
+  // place con el popup abierto (status/reporters). Actualiza la
+  // referencia y re-pinta header+body sin tocar el estado local del
+  // usuario (selected/submitted/cooldownMs) ni reiniciar la animación
+  // de entrada — igual que hacía React al reconciliar el mismo nodo.
+  if (!pp || !currentPopupPlace) return;
+  pp.place = currentPopupPlace;
+  ppApplyCardTheme();
+  ppRenderHeader();
+  ppRenderBody();
 };
 
 // ============================================================
