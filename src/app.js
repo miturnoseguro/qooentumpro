@@ -1798,7 +1798,11 @@ const ppApplyCardTheme = () => {
   const card = document.getElementById('pp-card');
   if (!card) return;
   card.style.background = T ? T.cardBg : '#fff';
-  
+  card.style.boxShadow = (isPremium || isBlack)
+  ? '0 24px 64px rgba(0,0,0,0.22)'
+  : (sponsor
+      ? '0 24px 64px rgba(0,0,0,0.28)'
+      : '0 24px 64px rgba(0,0,0,0.28)');
 };
 
 const ppClose = () => {
