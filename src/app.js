@@ -1647,7 +1647,7 @@ const ppRenderBody = () => {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
       ${voteOptions.map(({idx,label,pts,color}) => {
         const isSel = selected === idx;
-        return `<button class="pp-vote-btn" data-idx="${idx}" style="border:${isSel ? `2px solid ${color}` : (T ? `1.5px solid ${T.btnBorder}` : '1.5px solid #E2E8F0')};border-radius:10px;background:${isSel ? color : (T ? T.btnBg : '#999')};padding:9px 8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:${isSel ? '#fff' : (T ? T.text : '#fff')};text-align:left;font-family:inherit;transition:all 0.18s cubic-bezier(0.34,1.56,0.64,1);transform:${isSel ? 'translateY(-1px)' : 'none'};box-shadow:${isSel ? `0 4px 12px ${color}44` : 'none'};">
+        return `<button class="pp-vote-btn" data-idx="${idx}" style="border:${isSel ? `2px solid ${color}` : (T ? `1.5px solid ${T.btnBorder}` : '1.5px solid #E2E8F0')};border-radius:10px;background:${isSel ? color : (T ? T.btnBg : '#fff')};padding:9px 8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:${isSel ? '#000' : (T ? T.text : '#fff')};text-align:left;font-family:inherit;transition:all 0.18s cubic-bezier(0.34,1.56,0.64,1);transform:${isSel ? 'translateY(-1px)' : 'none'};box-shadow:${isSel ? `0 4px 12px ${color}44` : 'none'};">
           <span style="width:8px;height:8px;border-radius:50%;background:${isSel ? 'rgba(255,255,255,0.55)' : color};display:inline-block;flex-shrink:0;"></span>
           ${escHtml(label)}
           <span style="margin-left:auto;font-size:9px;font-weight:800;color:#fff;background:${color};padding:1px 6px;border-radius:40px;">${pts}</span>
