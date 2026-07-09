@@ -16,7 +16,7 @@ const CONFIG = {
   // 'PEGAR_AQUI', la app sigue funcionando solo con Overpass.
   GEOAPIFY_API_KEY: '631ee415c3eb4b87b4d5a0c59503af58',
   DEFAULT_CENTER: { lat: -34.6083, lng: -58.3896 },
-  REPORT_RADIUS_M: 30,
+  REPORT_RADIUS_M: 50,
   GPS_ZOOM: 19,
   FOLLOW_ZOOM: 18,
   CHECKIN_RADIUS_M: 150,
