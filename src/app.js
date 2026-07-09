@@ -16,7 +16,7 @@ const CONFIG = {
   // 'PEGAR_AQUI', la app sigue funcionando solo con Overpass.
   GEOAPIFY_API_KEY: '631ee415c3eb4b87b4d5a0c59503af58',
   DEFAULT_CENTER: { lat: -34.6083, lng: -58.3896 },
-  REPORT_RADIUS_M: 30,
+  REPORT_RADIUS_M: 50,
   GPS_ZOOM: 19,
   FOLLOW_ZOOM: 18,
   CHECKIN_RADIUS_M: 150,
@@ -806,8 +806,24 @@ const _loadPlaces = async (lat,lng) => {
   }
 };
 const rebuildNearby = (lat,lng) => {
+  // IMPORTANTE: "cercano" para lo que se DIBUJA en el mapa tiene que ser
+  // siempre relativo a lo que el usuario está mirando (el centro actual
+  // del mapa), no a la lat/lng que le hayan pasado a esta función. Antes
+  // usábamos directamente (lat,lng), pero esta función se llama tanto
+  // desde eventos del mapa (pan/zoom, centro = mapa) como desde el watch
+  // de GPS en segundo plano (lat,lng = posición REAL del usuario). Si el
+  // usuario arrastró el mapa a otro lugar (followMode apagado) y el mapa
+  // quedó fijo ahí, una lectura de GPS de fondo recalculaba nearbyPlaces
+  // en base a la posición real (lejos de lo que se está viendo) y las
+  // cards desaparecían del viewport aunque nadie tocó zoom ni pan.
+  const center = (mlMap && mlReady) ? mlMap.getCenter() : null;
+  const rLat = center ? center.lat : lat;
+  const rLng = center ? center.lng : lng;
   const maxDist = CONFIG.TILE_DEG * 111320 * 1.2;
-  nearbyPlaces = Object.values(placeStore).filter(p => validCoord(p.lat,p.lng) && dist(lat,lng,p.lat,p.lng) <= maxDist);
+  nearbyPlaces = Object.values(placeStore).filter(p => validCoord(p.lat,p.lng) && dist(rLat,rLng,p.lat,p.lng) <= maxDist);
+  // El seed diario sí sigue atado a la posición real del usuario (lat,lng),
+  // no al centro del mapa: es sobre "lugares cerca tuyo hoy", no sobre lo
+  // que estás mirando en pantalla.
   applySeed(lat,lng);
 };
 const syncBackend = async (lat,lng) => {
@@ -928,8 +944,8 @@ const initMap = (center) => {
     if (!mlMap) return;
     const c = mlMap.getCenter();
     const key = tileKey(c.lat, c.lng);
-    if (key !== window._lastTileKey) {
-      window._lastTileKey = key;
+    if (key !== window._lastMapTileKey) {
+      window._lastMapTileKey = key;
       ensurePlaces(c.lat, c.lng);
     }
   });
@@ -1000,7 +1016,7 @@ const onGps = pos => {
   }
   if (!window._mapLoaded) {
     window._mapLoaded = true;
-    window._lastTileKey = tileKey(lat,lng);
+    window._lastGpsTileKey = tileKey(lat,lng);
     prefetch3km(lat,lng);
     ensurePlaces(lat,lng).then(() => maybeCheckin(lat,lng));
     updateGpsUI();
@@ -1008,7 +1024,7 @@ const onGps = pos => {
     cercaLoadPlaces();
   } else {
     const key = tileKey(lat,lng);
-    if (key !== window._lastTileKey) { window._lastTileKey = key; ensurePlaces(lat,lng).then(() => maybeCheckin(lat,lng)); }
+    if (key !== window._lastGpsTileKey) { window._lastGpsTileKey = key; ensurePlaces(lat,lng).then(() => maybeCheckin(lat,lng)); }
     else maybeCheckin(lat,lng);
   }
   document.getElementById('splash').classList.add('hidden');
