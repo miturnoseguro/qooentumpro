@@ -172,25 +172,24 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
    se ve prácticamente igual y es mucho más barato. */
 .fc-card { width: 160px; background: rgba(255,255,255,.98); border: 1.5px solid var(--border); border-radius: 22px; padding: 5px 10px 8px; font-family: inherit; text-align: left; box-shadow: 0 3px 10px rgba(15,23,42,.16); }
 .fc-card-wrap.is-sponsor .fc-card {
-  border-color: color-mix(in srgb, var(--sponsor-color, #D4AF17) 75%, var(--ink));
-  box-shadow: 3px 3px 0 color-mix(in srgb, var(--sponsor-color, #D4AF17) 75%, var(--ink));
+  border-color: color-mix(in srgb, var(--sponsor-color, #B8860B) 80%, var(--ink));
+  box-shadow:
+    3px 3px 0 color-mix(in srgb, var(--sponsor-color, #B8860B) 80%, var(--ink)),
+    inset 0 0 0 3px rgb(120 84 10 / 60%);
 }
 
 .fc-card-wrap.is-sponsor .fc-card {
   background:
-    linear-gradient(
-      135deg,
-      #f5e6a3 0%,
-      #e8c93e 12%,
-      #a68a1f 24%,
-      #d9b92e 38%,
-      #fdf3c0 50%,
-      #c9a227 64%,
-      #7a6414 76%,
-      #e8c93e 88%,
-      #f5e6a3 100%
+    radial-gradient(
+      circle at 32% 28%,
+      #fff6d0 0%,
+      #ffe37a 14%,
+      #f0c33d 30%,
+      #d9a520 48%,
+      #b8860b 66%,
+      #8a6208 82%,
+      #6b4c05 100%
     );
-  background-blend-mode: normal;
 }
 .fc-card-head { display: flex; gap: 6px; align-items: center; }
 .fc-card-logo { position: relative; width: 24px; height: 24px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; overflow: visible; }
@@ -846,25 +845,24 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
    performance que ya tenían para hasta ~150 markers en pantalla) */
 .fc-card { border-width: 2px; border-color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
 .fc-card-wrap.is-sponsor .fc-card {
-  border-color: color-mix(in srgb, var(--sponsor-color, #D4AF17) 75%, var(--ink));
-  box-shadow: 3px 3px 0 color-mix(in srgb, var(--sponsor-color, #D4AF17) 75%, var(--ink));
+  border-color: color-mix(in srgb, var(--sponsor-color, #B8860B) 80%, var(--ink));
+  box-shadow:
+    3px 3px 0 color-mix(in srgb, var(--sponsor-color, #B8860B) 80%, var(--ink)),
+    inset 0 0 0 3px rgb(120 84 10 / 60%);
 }
 
 .fc-card-wrap.is-sponsor .fc-card {
   background:
-    linear-gradient(
-      135deg,
-      #f5e6a3 0%,
-      #e8c93e 12%,
-      #a68a1f 24%,
-      #d9b92e 38%,
-      #fdf3c0 50%,
-      #c9a227 64%,
-      #7a6414 76%,
-      #e8c93e 88%,
-      #f5e6a3 100%
+    radial-gradient(
+      circle at 32% 28%,
+      #fff6d0 0%,
+      #ffe37a 14%,
+      #f0c33d 30%,
+      #d9a520 48%,
+      #b8860b 66%,
+      #8a6208 82%,
+      #6b4c05 100%
     );
-  background-blend-mode: normal;
 }
 .cluster-bubble { border-width: 2.5px; box-shadow: 3px 3px 0 var(--ink); }
 
