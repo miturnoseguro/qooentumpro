@@ -21,6 +21,9 @@ const CONFIG = {
   FOLLOW_ZOOM: 18,
   CHECKIN_RADIUS_M: 150,
   SPONSOR_PIN_RADIUS_M: 100, // radio para "pinnear" la card de un sponsor Black arriba a la izquierda
+  // Radio visible del mapa (en metros, desde el centro al borde) por debajo
+  // del cual se corta el agrupamiento de cards y se muestran todas sueltas.
+  CLUSTER_DISABLE_RADIUS_M: 100,
   // Antes 0.0025 (~278m): cada ~280m de movimiento disparaba un ciclo completo
   // de fetch a Supabase + rebuild de markers. Con ~670m el mismo ciclo se
   // dispara con mucha menos frecuencia al caminar/arrastrar el mapa, sin
@@ -1300,15 +1303,23 @@ const _buildMarkers = (placesToShow) => {
   const rest = inView.filter(p => !isTopSponsor(p));
 
   // El resto se agrupa por grilla (más chica cuanto más zoom, ver
-  // clusterGrid): si en una celda hay 2+ lugares normales, se muestra como
-  // una sola burbuja "+N lugares" en vez de amontonar cards. Si hay 1 solo
-  // en la celda, se muestra como card normal (agrupar un solo lugar no
-  // suma nada).
+  // clusterGrid) — PERO solo si el mapa está mostrando más de ~100m a la
+  // redonda. Si ya estás zoomeado a 100m o menos, se corta el agrupamiento
+  // de una: se ven todas las cards sueltas, sin burbujas.
   const zoom = mlMap.getZoom();
-  const cellGroups = computeClusters(rest, clusterGrid(zoom));
+  const centerPt = mlMap.getCenter();
+  const viewRadiusM = Math.max(
+    dist(centerPt.lat, centerPt.lng, bounds.getNorth(), centerPt.lng),
+    dist(centerPt.lat, centerPt.lng, centerPt.lat, bounds.getEast())
+  );
   const individualRest = [];
   const bubbleClusters = [];
-  cellGroups.forEach(c => { if (c.count > 1) bubbleClusters.push(c); else individualRest.push(c.places[0]); });
+  if (viewRadiusM <= CONFIG.CLUSTER_DISABLE_RADIUS_M) {
+    individualRest.push(...rest);
+  } else {
+    const cellGroups = computeClusters(rest, clusterGrid(zoom));
+    cellGroups.forEach(c => { if (c.count > 1) bubbleClusters.push(c); else individualRest.push(c.places[0]); });
+  }
 
   // Burbujas de cluster: son pocas, se recrean enteras cada vez (no vale la
   // pena diffearlas como a las cards). Tocarlas te lleva/zoomea a esa zona.
