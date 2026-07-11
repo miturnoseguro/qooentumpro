@@ -1918,6 +1918,8 @@ const submitVote = async (place, statusIdx) => {
   }
   if (res && typeof res.points === 'number') {
     userPts = res.points;
+    const myRank = rankingData.find(u => u.isMe);
+    if (myRank) myRank.pts = userPts;
     const streakBefore = userStreak;
     if (res.currentStreak != null) { userStreak = res.currentStreak; userLongestStreak = res.longestStreak ?? userLongestStreak; }
     updateHUD();
@@ -2405,7 +2407,7 @@ const switchTab = tab => {
     document.getElementById('panel-'+t).classList.toggle('visible', t === tab);
   });
   if (tab === 'cerca') { if (!cercaLoaded) cercaLoadPlaces(); else cercaApplyFilters(); }
-  if (tab === 'ranking') { buildRanking(); if (!rankingData.length && BACKEND_READY) apiGet('ranking', currentUser?{email:currentUser.email}:{}).then(r => { if (r?.ranking) { rankingData = r.ranking; buildRanking(); } }); }
+  if (tab === 'ranking') { buildRanking(); if (BACKEND_READY) apiGet('ranking', currentUser?{email:currentUser.email}:{}).then(r => { if (r?.ranking) { rankingData = r.ranking; buildRanking(); } }); }
   if (tab === 'prizes') { buildPrizes(); if (!prizesData.length && BACKEND_READY) apiGet('prizes').then(r => { if (r?.prizes) { prizesData = r.prizes; buildPrizes(); } }); }
 };
 
