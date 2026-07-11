@@ -56,7 +56,44 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
   animation: spin 0.8s linear infinite;
 }
 #splash-text { margin-top: 16px; font-size: 14px; font-weight: 600; color: var(--text2); }
+#splash-spinner.wiz-hidden, #splash-text.wiz-hidden { display: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== ONBOARDING WIZARD (previo al pedido de GPS) ===== */
+#onboarding-wizard {
+  display: none;
+  flex-direction: column; align-items: center; gap: 18px;
+  width: 100%; max-width: 320px; padding: 0 24px;
+}
+#onboarding-wizard.show { display: flex; }
+.wiz-card {
+  position: relative;
+  width: 100%;
+  background: var(--green-lt);
+  border: 1px solid rgba(0,196,140,.25);
+  border-radius: var(--radius-lg);
+  padding: 22px 20px 20px;
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; gap: 10px;
+  animation: wizIn .35s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes wizIn { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.wiz-step-badge {
+  position: absolute; top: 10px; right: 12px;
+  font-size: 10px; font-weight: 900; color: var(--green-dk);
+  background: #fff; border-radius: 20px; padding: 2px 8px;
+  letter-spacing: .3px;
+}
+.wiz-step-badge span { color: var(--text3); font-weight: 700; }
+.wiz-icon { font-size: 34px; line-height: 1; }
+.wiz-text { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.4; }
+.wiz-dots { display: flex; align-items: center; gap: 7px; }
+.wiz-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--border2);
+  transition: all .3s cubic-bezier(.34,1.56,.64,1);
+}
+.wiz-dot.active { width: 20px; border-radius: 4px; background: var(--green); }
 
 /* ===== TOPBAR ===== */
 .topbar {
@@ -891,6 +928,19 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
 <body>
 <!-- SPLASH DE CARGA -->
 <div id="splash">
+  <div id="onboarding-wizard">
+    <div class="wiz-card">
+      <div class="wiz-step-badge">1<span>/3</span></div>
+      <div class="wiz-icon">🙋</div>
+      <div class="wiz-text">Ayudás a otras personas reportando cómo está un lugar</div>
+    </div>
+    <div class="wiz-dots">
+      <span class="wiz-dot"></span>
+      <span class="wiz-dot"></span>
+      <span class="wiz-dot"></span>
+    </div>
+  </div>
+
   <div id="splash-spinner"></div>
   <div id="splash-text">Cargando Qooentum…</div>
 </div>
