@@ -129,6 +129,7 @@ const hidePlacesLoading = (delay = 250, pillId = 'places-loading-pill') => {
 const fmtCooldown = ms => { const m=Math.ceil(ms/60000); const h=Math.floor(m/60); const r=m%60; return h? (r?h+'h '+r+'min':h+'h') : r+'min'; };
 
 let userPts = 0, currentUser = null, isLoggedIn = false;
+let userStreak = 0, userLongestStreak = 0;
 let placeStore = {}, tileCache = {}, nearbyPlaces = [];
 let userLat = null, userLng = null, gpsEverReceived = false, followMode = true;
 let mlMap = null, mlReady = false, mlMarkers = {}, mlClusterMarkers = [], mlUserMarker = null;
@@ -1335,17 +1336,19 @@ const _buildMarkers = (placesToShow) => {
   });
 
   // Cupo de cards individuales: premium entra SIEMPRE (no cuenta para el
-  // corte), el resto llena lo que queda del MAX priorizando lo ya visible.
+  // corte). MAX es un techo "blando": una card que YA está dibujada y
+  // sigue dentro de bounds+buffer NUNCA se saca solo por reordenamiento
+  // de distancia — eso era lo que causaba el titileo (cards visibles que
+  // desaparecían de golpe al hacer zoom out o pan hacia zonas densas,
+  // porque perdían el "empate" de distancia contra recién llegadas).
+  // Solo entran nuevas cards mientras quede presupuesto libre; si no
+  // queda, simplemente no se agregan más (MAX pasa a ser un límite de
+  // "cuántas cards nuevas por ciclo", no de "cuántas pueden existir").
   const already = individualRest.filter(p => mlMarkers[p.id]);
   const freshRest = individualRest.filter(p => !mlMarkers[p.id]);
-  const budget = Math.max(0, MAX - premium.length);
-  let toRenderRest;
-  if (already.length >= budget) {
-    toRenderRest = [...already].sort(byDist).slice(0, budget);
-  } else {
-    const restSorted = [...freshRest].sort(byDist).slice(0, budget - already.length);
-    toRenderRest = [...already, ...restSorted];
-  }
+  const budget = Math.max(0, MAX - premium.length - already.length);
+  const restSorted = budget > 0 ? [...freshRest].sort(byDist).slice(0, budget) : [];
+  const toRenderRest = [...already, ...restSorted];
   const toRender = [...premium, ...toRenderRest];
   const renderIds = new Set(toRender.map(p => p.id));
 
@@ -1915,9 +1918,22 @@ const submitVote = async (place, statusIdx) => {
   }
   if (res && typeof res.points === 'number') {
     userPts = res.points;
+    const streakBefore = userStreak;
+    if (res.currentStreak != null) { userStreak = res.currentStreak; userLongestStreak = res.longestStreak ?? userLongestStreak; }
     updateHUD();
     flashPoints();
-    showToast(`🎉 +${pts} puntos ganados`);
+    // Racha recién extendida hoy (no solo "seguía igual" por otro reporte
+    // del mismo día): festejamos con un toast propio, priorizado sobre el
+    // de puntos en los hitos importantes (3/7/14/30 días) para que se note.
+    const streakGrew = res.streakIncreased && userStreak > streakBefore;
+    const milestone = [3,7,14,30,60,100].includes(userStreak);
+    if (streakGrew && milestone) {
+      showToast(`🔥 ¡${userStreak} días seguidos reportando!`);
+    } else if (streakGrew) {
+      showToast(`🎉 +${pts} puntos · 🔥 racha de ${userStreak} días`);
+    } else {
+      showToast(`🎉 +${pts} puntos ganados`);
+    }
     return true;
   }
   addPoints(pts);
@@ -2205,7 +2221,7 @@ const toggleUserDropdown = () => {
 };
 const doLogout = () => {
   vibrate(10);
-  isLoggedIn = false; currentUser = null; userPts = 0; placeCooldowns = {}; followMode = false; updateGpsUI();
+  isLoggedIn = false; currentUser = null; userPts = 0; userStreak = 0; userLongestStreak = 0; placeCooldowns = {}; followMode = false; updateGpsUI();
   signOut();
   document.getElementById('user-chip-wrap').style.display = 'none';
   document.getElementById('login-topbar-btn').style.display = 'flex';
@@ -2267,7 +2283,9 @@ const hydrateFromAuthUser = async (authUser) => {
   applyLoggedUI();
   if (BACKEND_READY) {
     const me = await apiGet('me', { email: currentUser.email });
-    if (me?.points != null) { userPts = me.points; updateHUD(); }
+    if (me?.points != null) { userPts = me.points; }
+    if (me?.currentStreak != null) { userStreak = me.currentStreak; userLongestStreak = me.longestStreak ?? userStreak; }
+    updateHUD();
   }
   maybeStartSync();
 };
@@ -2282,6 +2300,18 @@ const updateHUD = () => {
   document.getElementById('xp-bar-fill').style.width = info.pct + '%';
   const p = document.getElementById('my-pts-prizes');
   if (p) p.textContent = userPts + ' pts disponibles';
+  const streakEl = document.getElementById('streak-badge');
+  if (streakEl) {
+    if (userStreak > 0) {
+      streakEl.style.display = '';
+      streakEl.textContent = `🔥 ${userStreak}`;
+      streakEl.title = userLongestStreak > userStreak
+        ? `Racha actual: ${userStreak} días · Récord: ${userLongestStreak} días`
+        : `Racha actual: ${userStreak} días`;
+    } else {
+      streakEl.style.display = 'none';
+    }
+  }
 };
 const flashPoints = () => {
   const el = document.getElementById('my-pts');

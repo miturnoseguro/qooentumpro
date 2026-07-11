@@ -101,6 +101,11 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
   padding: 1px 6px; border-radius: 5px; letter-spacing: 0.2px;
 }
 .pts-label { font-size: 12px; font-weight: 800; color: var(--green); line-height: 1.2; }
+.streak-badge {
+  font-size: 10px; font-weight: 900; color: #fff;
+  background: linear-gradient(135deg, #F59E0B, #EF4444);
+  padding: 1px 6px; border-radius: 5px; letter-spacing: 0.2px;
+}
 .xp-bar-bg { height: 3px; background: var(--surface2); border-radius: 99px; margin-top: 2px; overflow: hidden; }
 .xp-bar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #00C48C, #22D3EE); transition: width .6s ease; }
 .chip-caret { width: 12px; height: 12px; color: var(--text3); transition: transform .2s; flex-shrink: 0; }
@@ -908,6 +913,7 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
             <div class="pts-row">
               <span class="lvl-badge" id="lvl-badge">Nivel 1</span>
               <span class="pts-label" id="my-pts">0 pts</span>
+              <span class="streak-badge" id="streak-badge" style="display:none"></span>
             </div>
             <div class="xp-bar-bg"><div class="xp-bar-fill" id="xp-bar-fill" style="width:0%"></div></div>
           </div>

@@ -101,7 +101,8 @@ begin
 
   return jsonb_build_object(
     'id', v_row.id, 'email', v_row.email, 'name', v_row.name,
-    'picture', v_row.picture, 'points', v_row.points
+    'picture', v_row.picture, 'points', v_row.points,
+    'currentStreak', v_row.current_streak, 'longestStreak', v_row.longest_streak
   );
 end;
 $$;
@@ -193,6 +194,15 @@ declare
   v_already boolean;
   v_last_report_ts bigint;
   v_total_points integer;
+  -- racha: día calendario UTC de hoy vs. el último día en que el usuario
+  -- reportó algo (cualquier lugar), guardado en profiles.last_report_day.
+  v_today date := public._report_day(now());
+  v_cur_streak integer;
+  v_last_day date;
+  v_new_streak integer;
+  v_out_streak integer;
+  v_out_longest integer;
+  v_streak_increased boolean;
 begin
   if v_uid is null then
     raise exception 'not authenticated';
@@ -250,12 +260,38 @@ select exists(
         report_ts = (extract(epoch from now()) * 1000)::bigint
     where id = v_place_id;
 
-  update public.profiles
-    set points = points + v_points
-    where id = v_uid
-    returning points into v_total_points;
+  -- Racha: se evalúa UNA vez por día natural (UTC), sin importar cuántos
+  -- lugares distintos reporte el usuario ese día (eso lo permite el
+  -- cooldown, que es por lugar, no por día). Reglas:
+  --   · last_report_day = hoy        → ya venía contando hoy, no cambia.
+  --   · last_report_day = ayer       → sigue la racha, +1.
+  --   · last_report_day < ayer / null → se cortó (o es la primera vez), arranca en 1.
+  select current_streak, last_report_day into v_cur_streak, v_last_day
+    from public.profiles where id = v_uid;
 
-  return jsonb_build_object('points', v_total_points, 'cooldown', false);
+  if v_last_day = v_today then
+    v_new_streak := v_cur_streak;
+  elsif v_last_day = v_today - 1 then
+    v_new_streak := v_cur_streak + 1;
+  else
+    v_new_streak := 1;
+  end if;
+  v_streak_increased := v_new_streak > coalesce(v_cur_streak, 0);
+
+  update public.profiles
+    set points = points + v_points,
+        current_streak = v_new_streak,
+        longest_streak = greatest(longest_streak, v_new_streak),
+        last_report_day = v_today
+    where id = v_uid
+    returning points, current_streak, longest_streak
+    into v_total_points, v_out_streak, v_out_longest;
+
+  return jsonb_build_object(
+    'points', v_total_points, 'cooldown', false,
+    'currentStreak', v_out_streak, 'longestStreak', v_out_longest,
+    'streakIncreased', v_streak_increased
+  );
 end;
 $$;
 

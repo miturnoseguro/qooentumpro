@@ -157,3 +157,18 @@ drop trigger if exists profiles_set_updated_at on public.profiles;
 create trigger profiles_set_updated_at
   before update on public.profiles
   for each row execute function public.set_updated_at();
+
+-- ---------------------------------------------------------------
+-- Racha de reportes (streak)
+-- current_streak  → días consecutivos (calendario UTC) reportando
+--                    al menos 1 lugar. La actualiza SOLO submit_vote().
+-- longest_streak  → mejor racha histórica, para mostrar "tu récord".
+-- last_report_day → último día (UTC) en que reportó, usado por
+--                    submit_vote() para decidir si la racha sigue,
+--                    se resetea a 1, o queda igual (ya reportó hoy).
+-- Se agregan acá con IF NOT EXISTS para que este archivo se pueda
+-- re-correr sin romper nada en un proyecto ya desplegado.
+-- ---------------------------------------------------------------
+alter table public.profiles add column if not exists current_streak  integer not null default 0;
+alter table public.profiles add column if not exists longest_streak  integer not null default 0;
+alter table public.profiles add column if not exists last_report_day date;
