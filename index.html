@@ -73,7 +73,7 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
 }
 .brand { display: flex; align-items: center; gap: 8px; text-decoration: none; flex-shrink: 0; }
 .brand-mark { width: 150px; height: 43px; display: flex; align-items: center; }
-.brand-mark img { width: 115%; height: 115%; object-fit: contain; }
+.brand-mark img { width: 100%; height: 100%; object-fit: contain; }
 .brand-powered { font-size: 11px; font-weight: 600; color: var(--text3); letter-spacing: 0.2px; white-space: nowrap; }
 .brand-powered strong { font-weight: 800; color: var(--text2); }
 .topbar-auth { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
@@ -171,7 +171,7 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
    normal) — eran la causa principal del lag/tirón al hacer zoom. box-shadow
    se ve prácticamente igual y es mucho más barato. */
 .fc-card { width: 160px; background: rgba(255,255,255,.98); border: 1.5px solid var(--border); border-radius: 22px; padding: 5px 10px 8px; font-family: inherit; text-align: left; box-shadow: 0 3px 10px rgba(15,23,42,.16); }
-.fc-card-wrap.is-sponsor .fc-card { background: linear-gradient(165deg, color-mix(in srgb, #fff8a0 76%, color-mix(in srgb, #45402f 34%, #fff)) 0%, rgb(230 205 161) 58%); border-color: color-mix(in srgb, var(--sponsor-color, #70C9B0) 45%, var(--border)); }
+.fc-card-wrap.is-sponsor .fc-card { background: linear-gradient(165deg, color-mix(in srgb, var(--gold) 16%, color-mix(in srgb, var(--sponsor-color, #70C9B0) 14%, #fff)) 0%, rgba(255,255,255,.98) 58%); border-color: color-mix(in srgb, var(--sponsor-color, #70C9B0) 45%, var(--border)); }
 .fc-card-head { display: flex; gap: 6px; align-items: center; }
 .fc-card-logo { position: relative; width: 24px; height: 24px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; overflow: visible; }
 .fc-card-logo img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }
@@ -826,7 +826,8 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
    performance que ya tenían para hasta ~150 markers en pantalla) */
 .fc-card { border-width: 2px; border-color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
 .fc-card-wrap.is-sponsor .fc-card {
-  border-color: color-mix(in srgb, #997b1c 70%, #866e09); box-shadow: 3px 3px 0 color-mix(in srgb, #937716 70%, #937716);
+  border-color: color-mix(in srgb, var(--sponsor-color, #70C9B0) 70%, var(--ink));
+  box-shadow: 3px 3px 0 color-mix(in srgb, var(--sponsor-color, #70C9B0) 70%, var(--ink));
 }
 .cluster-bubble { border-width: 2.5px; box-shadow: 3px 3px 0 var(--ink); }
 
@@ -881,7 +882,7 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
       <div class="brand-mark"><img src="logo.png" alt="Qooentum" width="150" height="43"></div>
       <span class="brand-powered">by <strong>Bigdaat.com</strong></span>
      
-<a href="privacidad.html" style="font-size: 8px;color:#333; margin-left: 10px;">Política de Privacidad</a>
+<a href="privacidad.html" style="font-size: 8px;color:#333">Política de Privacidad</a>
 
     </a>
     <div class="topbar-auth">

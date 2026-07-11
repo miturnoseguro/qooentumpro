@@ -11,7 +11,8 @@
   --bg: #F0F4F8; --surface: #FFFFFF; --surface2: #F1F5F9;
   --border: #E2E8F0; --border2: #CBD5E1;
   --text: #1e9a77; --text2: #64748B; --text3: #94A3B8;
-  --ink: #1e9a77;
+  --ink: #727272;
+  --ink-active: #1e9a77;
   --radius: 12px; --radius-lg: 20px; --radius-xl: 28px;
   --shadow-sm: 0 1px 3px rgba(15,23,42,.06);
   --shadow: 0 4px 16px rgba(15,23,42,.08);
@@ -718,14 +719,14 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
   box-shadow: 2px 2px 0 var(--ink);
   transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .15s, background .2s, border-color .2s;
 }
-.user-chip:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 var(--ink); }
+.user-chip:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 var(--ink-active); }
 .pts-label { font-family: 'Baloo 2', 'Inter', system-ui, sans-serif; }
 .login-topbar-btn {
   border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink);
   transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .15s;
 }
-.login-topbar-btn:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 var(--ink); }
-.login-topbar-btn:active { transform: translate(1px,1px); box-shadow: 1px 1px 0 var(--ink); }
+.login-topbar-btn:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 var(--ink-active); }
+.login-topbar-btn:active { transform: translate(1px,1px); box-shadow: 1px 1px 0 var(--ink-active); }
 
 /* Buscador */
 .map-search-bar, .search-results-dropdown {
@@ -739,14 +740,14 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
   border-width: 2px; font-family: 'Baloo 2', 'Inter', system-ui, sans-serif;
   transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .15s, background .18s, color .18s, border-color .18s;
 }
-.cerca-r-btn.active { border-color: var(--ink); box-shadow: 2px 2px 0 var(--ink); }
+.cerca-r-btn.active { border-color: var(--ink-active); box-shadow: 2px 2px 0 var(--ink-active); }
 .cerca-f-chip.active { box-shadow: 2px 2px 0 var(--blue); }
 .cerca-r-btn:active, .cerca-f-chip:active { transform: translate(1px,1px); }
 .stats-bar .cerca-count { font-family: 'Baloo 2', 'Inter', system-ui, sans-serif; }
 
 /* Bottom nav */
 .bottom-nav { border-width: 2.5px; border-color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
-.nav-btn.is-main.active { border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); }
+.nav-btn.is-main.active { border: 2px solid var(--ink-active); box-shadow: 2px 2px 0 var(--ink-active); }
 
 /* Ranking */
 .rank-name, .rank-pts-val, .panel-header { font-family: 'Baloo 2', 'Inter', system-ui, sans-serif; }
@@ -758,7 +759,7 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
   box-shadow: 3px 3px 0 var(--ink);
   transition: transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s;
 }
-.prize-row:hover { transform: translate(-1px,-2px); box-shadow: 4px 5px 0 var(--ink); }
+.prize-row:hover { transform: translate(-1px,-2px); box-shadow: 4px 5px 0 var(--ink-active); }
 .prize-name { font-family: 'Baloo 2', 'Inter', system-ui, sans-serif; }
 
 /* Check-in */
@@ -800,7 +801,7 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
   border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink);
   transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .15s, background .2s;
 }
-.gps-float-btn:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 var(--ink); background: var(--surface2); }
+.gps-float-btn:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 var(--ink-active); background: var(--surface2); }
 
 /* Cards del mapa (marker abierto) y clusters: mismo trazo, shadow sólida
    (más barata que la difuminada anterior, sigue el mismo criterio de
@@ -839,7 +840,7 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
 .pp-vote-btn:active { transform: translate(2px,2px) !important; box-shadow: none !important; }
 
 .pp-submit-btn { transition: transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s; }
-.pp-submit-btn.ready:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--ink); }
+.pp-submit-btn.ready:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--ink-active); }
 .pp-submit-btn.ready:active { transform: translate(2px,2px); box-shadow: none; }
 
 .pp-website-btn { transition: transform .15s cubic-bezier(.34,1.56,.64,1); }
