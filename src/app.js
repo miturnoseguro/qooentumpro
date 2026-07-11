@@ -1749,7 +1749,7 @@ const ppRenderBody = () => {
       <div style="display:flex;gap:7px;margin-bottom:12px;">
         ${[{val:place.reporters,lbl:'Reportes'}, {val:WAIT[place.status],lbl:'Espera'}, {val:TREND[place.status],lbl:'Tendencia'}].map(({val,lbl}) => `
           <div class="pp-stat" style="flex:1;background:${T ? T.statBg : '#F1F5F9'};border:2px solid ${stickerColor};box-shadow:2px 2px 0 ${stickerColor};border-radius:12px;padding:6px 8px;text-align:center;">
-            <p class="pp-stat-val" style="margin:0;font-size:14px;font-weight:700;color:${T ? T.text : '#17d6a1'};letter-spacing:-0.2px;">${val}</p>
+            <p class="pp-stat-val" style="margin:0;font-size:14px;font-weight:700;color:${T ? T.text : '#1e9a77'};letter-spacing:-0.2px;">${val}</p>
             <p style="margin:1px 0 0;font-size:8px;color:${T ? T.text3 : '#64748B'};text-transform:uppercase;letter-spacing:0.4px;font-weight:600;">${lbl}</p>
           </div>`).join('')}
       </div>

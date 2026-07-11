@@ -10,8 +10,8 @@
   --purple: #A855F7; --gold: #F59E0B;
   --bg: #F0F4F8; --surface: #FFFFFF; --surface2: #F1F5F9;
   --border: #E2E8F0; --border2: #CBD5E1;
-  --text: #17d6a1; --text2: #64748B; --text3: #94A3B8;
-  --ink: #17d6a1;
+  --text: #1e9a77; --text2: #64748B; --text3: #94A3B8;
+  --ink: #1e9a77;
   --radius: 12px; --radius-lg: 20px; --radius-xl: 28px;
   --shadow-sm: 0 1px 3px rgba(15,23,42,.06);
   --shadow: 0 4px 16px rgba(15,23,42,.08);
@@ -297,7 +297,7 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
 
 .pick-mode-banner {
   position: absolute; top: 64px; left: 50%; transform: translateX(-50%);
-  z-index: 997; background: linear-gradient(135deg, #1E293B, #17d6a1);
+  z-index: 997; background: linear-gradient(135deg, #1E293B, #1e9a77);
   border: 1.5px solid var(--green); border-radius: 40px;
   padding: 7px 18px; font-size: 12px; font-weight: 800; color: #fff;
   display: none; align-items: center; gap: 8px;
