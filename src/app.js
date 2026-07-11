@@ -1614,11 +1614,12 @@ const ppComputed = () => {
   const nearby = canReportPlace(place);
   const hasGps = userLat != null && userLng != null;
   const distTo = hasGps ? Math.round(dist(userLat, userLng, place.lat, place.lng)) : null;
-  return { place, s, sponsor, isPremium, isBlack, sponsorColor, badgeText, promo, website, T, onCooldown, nearby, hasGps, distTo };
+  const stickerColor = isBlack ? SPONSOR_BLACK_ACCENT : (isPremium ? sponsorColor : 'var(--ink)');
+  return { place, s, sponsor, isPremium, isBlack, sponsorColor, badgeText, promo, website, T, onCooldown, nearby, hasGps, distTo, stickerColor };
 };
 
 const ppRenderHeader = () => {
-  const { place, s, isBlack, sponsorColor, badgeText } = ppComputed();
+  const { place, s, isBlack, sponsorColor, badgeText, stickerColor } = ppComputed();
   const photo = getPhoto(place);
   const header = document.getElementById('pp-header');
   if (!header) return;
@@ -1626,25 +1627,26 @@ const ppRenderHeader = () => {
     <div style="position:relative;height:200px;flex-shrink:0;background:#E2E8F0;">
       <img id="pp-img" src="${escAttr(photo)}" alt="${escAttr(place.name)}" loading="lazy"
         style="width:100%;height:100%;object-fit:cover;display:block;opacity:${pp.imgLoaded?1:0};transition:opacity 0.4s ease;">
-      ${badgeText ? `<div style="position:absolute;top:12px;right:52px;background:${isBlack ? 'linear-gradient(135deg,#0A0A0C,#1c1c20)' : sponsorColor};border:${isBlack ? `1px solid ${SPONSOR_BLACK_ACCENT}` : 'none'};border-radius:40px;padding:3px 9px;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(0,0,0,.25);">
+      ${badgeText ? `<div style="position:absolute;top:12px;right:52px;background:${isBlack ? 'linear-gradient(135deg,#0A0A0C,#1c1c20)' : sponsorColor};border:1.5px solid ${isBlack ? SPONSOR_BLACK_ACCENT : 'rgba(255,255,255,.7)'};border-radius:40px;padding:3px 9px;display:flex;align-items:center;gap:4px;box-shadow:2px 2px 0 ${isBlack ? SPONSOR_BLACK_ACCENT : 'rgba(15,23,42,.35)'};">
+        <span style="font-size:9px;">✨</span>
         <span style="font-size:10px;font-weight:800;color:${isBlack ? SPONSOR_BLACK_ACCENT : '#fff'};letter-spacing:${isBlack?'.4px':'normal'};">${escHtml(badgeText)}</span>
       </div>` : ''}
       <div style="position:absolute;inset:0;background:linear-gradient(to bottom, rgba(0,0,0,0) 30%, rgba(0,0,0,0.68) 100%);"></div>
-      <button id="pp-close-btn" style="position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.42);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;line-height:1;backdrop-filter:blur(8px);">✕</button>
-      <div style="position:absolute;top:12px;left:12px;background:${s.color};border-radius:40px;padding:3px 9px;display:flex;align-items:center;gap:4px;">
+      <button id="pp-close-btn" class="pp-close-btn" style="position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.42);border:1.5px solid rgba(255,255,255,.55);cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;line-height:1;backdrop-filter:blur(8px);">✕</button>
+      <div style="position:absolute;top:12px;left:12px;background:${s.color};border:1.5px solid rgba(255,255,255,.55);border-radius:40px;padding:3px 9px;display:flex;align-items:center;gap:4px;box-shadow:2px 2px 0 rgba(0,0,0,.22);">
         <span style="width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.55);display:inline-block;flex-shrink:0;"></span>
         <span style="font-size:10px;font-weight:800;color:#fff;">${escHtml(s.label)}</span>
       </div>
       <div style="position:absolute;bottom:12px;left:12px;right:12px;display:flex;align-items:flex-end;gap:10px;">
         <div style="position:relative;flex-shrink:0;">
-          <div style="width:44px;height:44px;border-radius:14px;background:#fff;border:2.5px solid rgba(255,255,255,0.9);display:flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden;">${getLogoHtml(place)}</div>
+          <div style="width:44px;height:44px;border-radius:14px;background:#fff;border:2.5px solid ${stickerColor === 'var(--ink)' ? 'rgba(255,255,255,0.9)' : stickerColor};display:flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden;box-shadow:2px 2px 0 rgba(0,0,0,.25);">${getLogoHtml(place)}</div>
           ${place.verified ? `<div style="position:absolute;bottom:-3px;right:-3px;width:16px;height:16px;background:linear-gradient(135deg, ${sponsorColor}, color-mix(in srgb, ${sponsorColor} 55%, #fff));border-radius:50%;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:7px;color:#fff;font-weight:900;">✓</div>` : ''}
         </div>
         <div style="flex:1;min-width:0;">
-          <p style="margin:0;font-size:15px;font-weight:800;color:#fff;line-height:1.2;text-shadow:0 1px 6px rgba(0,0,0,0.5);">${escHtml(place.name)}</p>
+          <p class="pp-place-name" style="margin:0;font-size:16px;font-weight:800;color:#fff;line-height:1.2;text-shadow:0 1px 6px rgba(0,0,0,0.5);">${escHtml(place.name)}</p>
           <p style="margin:2px 0 0;font-size:11px;color:rgba(255,255,255,0.82);text-shadow:0 1px 4px rgba(0,0,0,0.4);">${escHtml(place.type)} · ${escHtml(place.addr)}</p>
         </div>
-        <div style="display:flex;align-items:center;gap:3px;background:rgba(255,255,255,0.18);backdrop-filter:blur(8px);border:0.5px solid rgba(255,255,255,0.3);border-radius:40px;padding:3px 8px;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:3px;background:rgba(255,255,255,0.18);backdrop-filter:blur(8px);border:1.5px solid rgba(255,255,255,0.4);border-radius:40px;padding:3px 8px;flex-shrink:0;box-shadow:2px 2px 0 rgba(0,0,0,.18);">
           <span style="color:#F59E0B;font-size:11px;">★</span>
           <span style="font-size:11px;font-weight:800;color:#fff;">${place.rating}</span>
           <span style="font-size:10px;color:rgba(255,255,255,0.7);"> · ${place.reviewsN}</span>
@@ -1661,7 +1663,7 @@ const ppRenderHeader = () => {
 };
 
 const ppRenderBody = () => {
-  const { place, sponsor, isBlack, sponsorColor, promo, website, T, onCooldown, nearby, hasGps, distTo } = ppComputed();
+  const { place, sponsor, isBlack, sponsorColor, promo, website, T, onCooldown, nearby, hasGps, distTo, stickerColor } = ppComputed();
   const { selected, submitted, cooldownMs } = pp;
   const body = document.getElementById('pp-body');
   if (!body) return;
@@ -1716,10 +1718,10 @@ const ppRenderBody = () => {
     { idx: 3, label: 'Colapsado', pts: '+20', color: '#EF4444' },
   ];
   const votesHtml = (!submitted && isLoggedIn && nearby && !onCooldown) ? `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px;">
       ${voteOptions.map(({idx,label,pts,color}) => {
         const isSel = selected === idx;
-        return `<button class="pp-vote-btn" data-idx="${idx}" style="border:${isSel ? `2px solid ${color}` : (T ? `1.5px solid ${T.btnBorder}` : '1.5px solid #E2E8F0')};border-radius:10px;background:${isSel ? color : (T ? T.btnBg : '#fff')};padding:9px 8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:${isSel ? '#fff' : (T ? T.text : '#000')};text-align:left;font-family:inherit;transition:all 0.18s cubic-bezier(0.34,1.56,0.64,1);transform:${isSel ? 'translateY(-1px)' : 'none'};box-shadow:${isSel ? `0 4px 12px ${color}44` : 'none'};">
+        return `<button class="pp-vote-btn" data-idx="${idx}" style="border:2px solid ${isSel ? color : stickerColor};border-radius:14px;background:${isSel ? color : (T ? T.btnBg : '#fff')};padding:9px 8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:${isSel ? '#fff' : (T ? T.text : '#000')};text-align:left;font-family:inherit;transform:${isSel ? 'translate(-1px,-1px)' : 'none'};box-shadow:${isSel ? `3px 3px 0 ${color}` : `2px 2px 0 ${stickerColor}`};">
           <span style="width:8px;height:8px;border-radius:50%;background:${isSel ? 'rgba(255,255,255,0.55)' : color};display:inline-block;flex-shrink:0;"></span>
           ${escHtml(label)}
           <span style="margin-left:auto;font-size:9px;font-weight:800;color:#fff;background:${color};padding:1px 6px;border-radius:40px;">${pts}</span>
@@ -1737,21 +1739,21 @@ const ppRenderBody = () => {
     </div>` : '';
 
   const submitBtnHtml = (!submitted && isLoggedIn && nearby && !onCooldown) ? `
-    <button id="pp-submit-btn" ${selected == null ? 'disabled' : ''} style="width:100%;background:${selected != null ? `linear-gradient(135deg, ${STATUS_CFG[selected].color}, ${STATUS_CFG[selected].color}cc)` : (T ? T.btnBg : '#E2E8F0')};color:${selected != null ? '#fff' : (T ? T.text3 : '#94A3B8')};border:none;border-radius:12px;padding:12px;font-size:13px;font-weight:800;cursor:${selected != null ? 'pointer' : 'not-allowed'};display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit;transition:all 0.22s;box-shadow:${selected != null ? `0 6px 20px ${STATUS_CFG[selected].color}44` : 'none'};transform:${selected != null ? 'translateY(-1px)' : 'none'};">Reportar estado</button>` : '';
+    <button id="pp-submit-btn" class="pp-submit-btn${selected != null ? ' ready' : ''}" ${selected == null ? 'disabled' : ''} style="width:100%;background:${selected != null ? `linear-gradient(135deg, ${STATUS_CFG[selected].color}, ${STATUS_CFG[selected].color}cc)` : (T ? T.btnBg : '#E2E8F0')};color:${selected != null ? '#fff' : (T ? T.text3 : '#94A3B8')};border:${selected != null ? '2px solid var(--ink)' : '2px solid transparent'};border-radius:14px;padding:12px;font-size:13px;font-weight:800;cursor:${selected != null ? 'pointer' : 'not-allowed'};display:flex;align-items:center;justify-content:center;gap:6px;font-family:'Baloo 2','Inter',system-ui,sans-serif;box-shadow:${selected != null ? '3px 3px 0 var(--ink)' : 'none'};">🚀 Reportar estado</button>` : '';
 
   const websiteHtml = website ? `
-    <a href="${escAttr(website)}" target="_blank" rel="noopener noreferrer" style="display:block;margin-top:10px;font-size:11.5px;font-weight:800;color:${isBlack ? SPONSOR_BLACK_ACCENT : BRAND_GREEN};text-align:center;text-decoration:none;border:1.5px solid ${isBlack ? SPONSOR_BLACK_ACCENT : BRAND_GREEN};border-radius:40px;padding:9px 14px;background:${isBlack ? 'rgba(212,175,55,0.08)' : `${BRAND_GREEN}0D`};letter-spacing:.2px;">${escHtml(website.replace(/^https?:\/\//,'').replace(/\/$/,''))}</a>` : '';
+    <a href="${escAttr(website)}" target="_blank" rel="noopener noreferrer" class="pp-website-btn" style="display:block;margin-top:10px;font-size:11.5px;font-weight:800;color:${isBlack ? SPONSOR_BLACK_ACCENT : BRAND_GREEN};text-align:center;text-decoration:none;border:2px solid ${isBlack ? SPONSOR_BLACK_ACCENT : BRAND_GREEN};border-radius:40px;padding:9px 14px;background:${isBlack ? 'rgba(212,175,55,0.08)' : `${BRAND_GREEN}0D`};letter-spacing:.2px;box-shadow:2px 2px 0 ${isBlack ? SPONSOR_BLACK_ACCENT : BRAND_GREEN};">${escHtml(website.replace(/^https?:\/\//,'').replace(/\/$/,''))}</a>` : '';
 
   body.innerHTML = `
     <div style="padding:${T ? T.pad : '14px 14px 16px'};">
-      <div style="display:flex;gap:6px;margin-bottom:12px;">
+      <div style="display:flex;gap:7px;margin-bottom:12px;">
         ${[{val:place.reporters,lbl:'Reportes'}, {val:WAIT[place.status],lbl:'Espera'}, {val:TREND[place.status],lbl:'Tendencia'}].map(({val,lbl}) => `
-          <div style="flex:1;background:${T ? T.statBg : '#F1F5F9'};border:${T ? T.statBorder : 'none'};border-radius:9px;padding:6px 8px;text-align:center;">
-            <p style="margin:0;font-size:13px;font-weight:600;color:${T ? T.text : '#7aa798'};letter-spacing:-0.2px;">${val}</p>
+          <div class="pp-stat" style="flex:1;background:${T ? T.statBg : '#F1F5F9'};border:2px solid ${stickerColor};box-shadow:2px 2px 0 ${stickerColor};border-radius:12px;padding:6px 8px;text-align:center;">
+            <p class="pp-stat-val" style="margin:0;font-size:14px;font-weight:700;color:${T ? T.text : '#17d6a1'};letter-spacing:-0.2px;">${val}</p>
             <p style="margin:1px 0 0;font-size:8px;color:${T ? T.text3 : '#64748B'};text-transform:uppercase;letter-spacing:0.4px;font-weight:600;">${lbl}</p>
           </div>`).join('')}
       </div>
-      ${promo ? `<div style="display:flex;align-items:center;gap:8px;background:${T ? `color-mix(in srgb, ${sponsorColor} 14%, transparent)` : `${sponsorColor}14`};border:1px solid ${sponsorColor}44;border-radius:10px;padding:8px 10px;margin-bottom:10px;">
+      ${promo ? `<div style="display:flex;align-items:center;gap:8px;background:${T ? `color-mix(in srgb, ${sponsorColor} 14%, transparent)` : `${sponsorColor}14`};border:2px dashed ${sponsorColor};border-radius:12px;padding:8px 10px;margin-bottom:10px;">
         <span style="font-size:16px;flex-shrink:0;">🎁</span>
         <span style="font-size:12px;font-weight:800;color:${sponsorColor};">${escHtml(promo)}</span>
       </div>` : ''}
@@ -1832,7 +1834,7 @@ const openPopup = place => {
   container.classList.add('active');
   container.innerHTML = `
     <div id="pp-overlay" style="position:fixed;inset:0;background:rgba(15,23,42,0);backdrop-filter:blur(0px);-webkit-backdrop-filter:blur(0px);display:flex;align-items:center;justify-content:center;transition:background 0.3s ease, backdrop-filter 0.3s ease;z-index:10000;padding:20px;">
-      <div id="pp-card" style="width:100%;max-width:370px;border-radius:22px;border:2.5px solid var(--ink);overflow:hidden;transform:translateY(40px) scale(0.93);opacity:0;transition:transform 0.38s cubic-bezier(0.34,1.56,0.64,1), opacity 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;max-height:calc(100dvh - 40px);display:flex;flex-direction:column;">
+      <div id="pp-card" class="pp-card" style="width:100%;max-width:370px;border-radius:24px;border:2.5px solid var(--ink);overflow:hidden;transform:translateY(40px) scale(0.93);opacity:0;transition:transform 0.38s cubic-bezier(0.34,1.56,0.64,1), opacity 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;max-height:calc(100dvh - 40px);display:flex;flex-direction:column;">
         <div style="overflow-y:auto;-ms-overflow-style:none;scrollbar-width:none;">
           <div id="pp-header"></div>
           <div id="pp-body"></div>
@@ -1866,19 +1868,16 @@ const openPopup = place => {
 // con el estado del popup, solo con los datos del place).
 const ppApplyCardTheme = () => {
   if (!pp) return;
-  const { sponsor, isPremium, isBlack, sponsorColor, T } = ppComputed();
+  const { sponsor, isPremium, isBlack, stickerColor, T } = ppComputed();
   const card = document.getElementById('pp-card');
   if (!card) return;
   card.style.background = T ? T.cardBg : '#fff';
-  const borderColor = (isPremium || isBlack)
-    ? `color-mix(in srgb, ${sponsorColor} 70%, var(--ink))`
-    : 'var(--ink)';
-  card.style.borderColor = borderColor;
+  card.style.borderColor = stickerColor;
   card.style.boxShadow = (isPremium || isBlack)
-  ? `4px 4px 0 ${borderColor}, 0 24px 64px rgba(0,0,0,0.22)`
+  ? `4px 4px 0 ${stickerColor}, 0 24px 64px rgba(0,0,0,0.22)`
   : (sponsor
-      ? `4px 4px 0 ${borderColor}, 0 24px 64px rgba(0,0,0,0.28)`
-      : `4px 4px 0 ${borderColor}, 0 24px 64px rgba(0,0,0,0.28)`);
+      ? `4px 4px 0 ${stickerColor}, 0 24px 64px rgba(0,0,0,0.28)`
+      : `4px 4px 0 ${stickerColor}, 0 24px 64px rgba(0,0,0,0.28)`);
 };
 
 const ppClose = () => {
