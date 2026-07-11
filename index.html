@@ -172,10 +172,8 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
    se ve prácticamente igual y es mucho más barato. */
 .fc-card { width: 160px; background: rgba(255,255,255,.98); border: 1.5px solid var(--border); border-radius: 22px; padding: 5px 10px 8px; font-family: inherit; text-align: left; box-shadow: 0 3px 10px rgba(15,23,42,.16); }
 .fc-card-wrap.is-sponsor .fc-card {
-  border-color: color-mix(in srgb, var(--sponsor-color, #B8860B) 80%, var(--ink));
-  box-shadow:
-    3px 3px 0 color-mix(in srgb, var(--sponsor-color, #B8860B) 80%, var(--ink)),
-    inset 0 0 0 3px rgb(120 84 10 / 60%);
+  
+  box-shadow: none !important;
 }
 
 .fc-card-wrap.is-sponsor .fc-card {
@@ -844,26 +842,7 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
    (más barata que la difuminada anterior, sigue el mismo criterio de
    performance que ya tenían para hasta ~150 markers en pantalla) */
 .fc-card { border-width: 2px; border-color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
-.fc-card-wrap.is-sponsor .fc-card {
-  border-color: color-mix(in srgb, var(--sponsor-color, #B8860B) 80%, var(--ink));
-  box-shadow:
-    3px 3px 0 color-mix(in srgb, var(--sponsor-color, #B8860B) 80%, var(--ink)),
-    inset 0 0 0 3px rgb(120 84 10 / 60%);
-}
 
-.fc-card-wrap.is-sponsor .fc-card {
-  background:
-    radial-gradient(
-      circle at 32% 28%,
-      #fff6d0 0%,
-      #ffe37a 14%,
-      #f0c33d 30%,
-      #d9a520 48%,
-      #b8860b 66%,
-      #8a6208 82%,
-      #6b4c05 100%
-    );
-}
 .cluster-bubble { border-width: 2.5px; box-shadow: 3px 3px 0 var(--ink); }
 
 /* Dropdown de resultados de búsqueda */
