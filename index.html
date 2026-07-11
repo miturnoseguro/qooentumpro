@@ -835,8 +835,14 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
    performance que ya tenían para hasta ~150 markers en pantalla) */
 .fc-card { border-width: 2px; border-color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
 .fc-card-wrap.is-sponsor .fc-card {
-  border-color: color-mix(in srgb, var(--sponsor-color, #70C9B0) 70%, var(--ink));
-  box-shadow: 3px 3px 0 color-mix(in srgb, var(--sponsor-color, #70C9B0) 70%, var(--ink));
+  border-color: color-mix(in srgb, var(--sponsor-color, #D4A017) 75%, var(--ink));
+  box-shadow: 3px 3px 0 color-mix(in srgb, var(--sponsor-color, #D4A017) 75%, var(--ink));
+    background: linear-gradient(
+    138deg,
+    color-mix(in srgb, #fff3c4 22%, color-mix(in srgb, var(--sponsor-color, #B8860B) 10%, #fff)) 0%,
+    rgb(232 185 35) 42%,
+    rgb(184 134 11) 100%
+  );
 }
 .cluster-bubble { border-width: 2.5px; box-shadow: 3px 3px 0 var(--ink); }
 
