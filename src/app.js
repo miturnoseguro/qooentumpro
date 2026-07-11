@@ -2496,7 +2496,7 @@ const ONBOARDING_STEPS = [
   { icon: '📍', text: 'Te logueás y contás cuánta gente hay en el momento', c: '#6366F1', cLt: '#EEF0FE', cDk: '#4338CA', cSh: 'rgba(99,102,241,.45)' },
   { icon: '🎁', text: 'Sumás puntos y los canjeás por premios', c: '#F59E0B', cLt: '#FFFBEB', cDk: '#B45309', cSh: 'rgba(245,158,11,.45)' },
 ];
-const ONBOARDING_STEP_MS = 1000; // 3 pasos x 1s = 3s totales
+const ONBOARDING_STEP_MS = 1800; // 3 pasos x 1s = 3s totales
 
 const showOnboardingWizard = () => new Promise(resolve => {
   const wizard = document.getElementById('onboarding-wizard');
