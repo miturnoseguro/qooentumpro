@@ -62,38 +62,58 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
 /* ===== ONBOARDING WIZARD (previo al pedido de GPS) ===== */
 #onboarding-wizard {
   display: none;
-  flex-direction: column; align-items: center; gap: 18px;
-  width: 100%; max-width: 320px; padding: 0 24px;
+  flex-direction: column; align-items: center; gap: 22px;
+  width: 100%; max-width: 340px; padding: 0 24px;
 }
 #onboarding-wizard.show { display: flex; }
 .wiz-card {
   position: relative;
   width: 100%;
-  background: var(--green-lt);
-  border: 1px solid rgba(0,196,140,.25);
-  border-radius: var(--radius-lg);
-  padding: 22px 20px 20px;
+  background: linear-gradient(160deg, var(--wiz-c-lt, var(--green-lt)) 0%, #fff 100%);
+  border: 1px solid var(--wiz-c-bd, rgba(0,196,140,.25));
+  box-shadow: 0 16px 40px -12px var(--wiz-c-sh, rgba(0,196,140,.35));
+  border-radius: 24px;
+  padding: 30px 22px 26px;
   display: flex; flex-direction: column; align-items: center;
-  text-align: center; gap: 10px;
-  animation: wizIn .35s cubic-bezier(.34,1.56,.64,1);
+  text-align: center; gap: 16px;
+  overflow: hidden;
+  transition: background .35s ease, box-shadow .35s ease, border-color .35s ease;
 }
-@keyframes wizIn { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.wiz-card.anim { animation: wizIn .4s cubic-bezier(.34,1.56,.64,1); }
+@keyframes wizIn { from { opacity: 0; transform: translateY(10px) scale(.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .wiz-step-badge {
-  position: absolute; top: 10px; right: 12px;
-  font-size: 10px; font-weight: 900; color: var(--green-dk);
-  background: #fff; border-radius: 20px; padding: 2px 8px;
-  letter-spacing: .3px;
+  position: absolute; top: 14px; right: 14px;
+  font-size: 11px; font-weight: 900; color: var(--wiz-c-dk, var(--green-dk));
+  background: #fff; border-radius: 20px; padding: 3px 10px;
+  letter-spacing: .3px; box-shadow: var(--shadow-sm);
 }
 .wiz-step-badge span { color: var(--text3); font-weight: 700; }
-.wiz-icon { font-size: 34px; line-height: 1; }
-.wiz-text { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.4; }
-.wiz-dots { display: flex; align-items: center; gap: 7px; }
+.wiz-icon-wrap {
+  width: 84px; height: 84px; border-radius: 50%;
+  background: var(--wiz-c, var(--green));
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 10px 24px -6px var(--wiz-c-sh, rgba(0,196,140,.5));
+}
+.wiz-icon-wrap.anim { animation: wizPop .5s cubic-bezier(.34,1.56,.64,1); }
+@keyframes wizPop { 0% { transform: scale(.4) rotate(-12deg); opacity:0; } 60% { transform: scale(1.12) rotate(4deg); opacity:1; } 100% { transform: scale(1) rotate(0); } }
+.wiz-icon { font-size: 46px; line-height: 1; filter: drop-shadow(0 2px 3px rgba(0,0,0,.15)); }
+.wiz-text { font-size: 19px; font-weight: 800; color: var(--text); line-height: 1.35; letter-spacing: -.2px; }
+.wiz-dots { display: flex; align-items: center; gap: 8px; }
 .wiz-dot {
-  width: 7px; height: 7px; border-radius: 50%;
+  width: 8px; height: 8px; border-radius: 50%;
   background: var(--border2);
   transition: all .3s cubic-bezier(.34,1.56,.64,1);
 }
-.wiz-dot.active { width: 20px; border-radius: 4px; background: var(--green); }
+.wiz-dot.active { width: 26px; border-radius: 4px; background: var(--wiz-c, var(--green)); }
+.wiz-progress-track {
+  width: 100%; height: 4px; border-radius: 99px;
+  background: rgba(0,0,0,.08); overflow: hidden;
+}
+.wiz-progress-fill {
+  height: 100%; width: 0%; border-radius: 99px;
+  background: var(--wiz-c, var(--green));
+  transition: width linear;
+}
 
 /* ===== TOPBAR ===== */
 .topbar {
@@ -931,8 +951,9 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
   <div id="onboarding-wizard">
     <div class="wiz-card">
       <div class="wiz-step-badge">1<span>/3</span></div>
-      <div class="wiz-icon">🙋</div>
+      <div class="wiz-icon-wrap"><div class="wiz-icon">🙋</div></div>
       <div class="wiz-text">Ayudás a otras personas reportando cómo está un lugar</div>
+      <div class="wiz-progress-track"><div class="wiz-progress-fill"></div></div>
     </div>
     <div class="wiz-dots">
       <span class="wiz-dot"></span>

@@ -2492,11 +2492,11 @@ const renderPopup = () => {
 // ONBOARDING WIZARD (se muestra ~3s antes de pedir el GPS)
 // ============================================================
 const ONBOARDING_STEPS = [
-  { icon: '🙋', text: 'Ayudás a otras personas reportando cómo está un lugar' },
-  { icon: '📍', text: 'Te logueás y contás cuánta gente hay en el momento' },
-  { icon: '🎁', text: 'Sumás puntos y los canjeás por premios' },
+  { icon: '🙋', text: 'Ayudás a otras personas reportando cómo está un lugar', c: '#00C48C', cLt: '#E8FBF5', cDk: '#009E72', cSh: 'rgba(0,196,140,.45)' },
+  { icon: '📍', text: 'Te logueás y contás cuánta gente hay en el momento', c: '#6366F1', cLt: '#EEF0FE', cDk: '#4338CA', cSh: 'rgba(99,102,241,.45)' },
+  { icon: '🎁', text: 'Sumás puntos y los canjeás por premios', c: '#F59E0B', cLt: '#FFFBEB', cDk: '#B45309', cSh: 'rgba(245,158,11,.45)' },
 ];
-const ONBOARDING_STEP_MS = 1500; // 3 pasos x 1s = 3s totales
+const ONBOARDING_STEP_MS = 1000; // 3 pasos x 1s = 3s totales
 
 const showOnboardingWizard = () => new Promise(resolve => {
   const wizard = document.getElementById('onboarding-wizard');
@@ -2509,10 +2509,13 @@ const showOnboardingWizard = () => new Promise(resolve => {
   try { seen = localStorage.getItem('qoo_onboarding_seen') === '1'; } catch (e) {}
   if (seen) { resolve(); return; }
 
+  const card = wizard.querySelector('.wiz-card');
+  const iconWrap = wizard.querySelector('.wiz-icon-wrap');
   const badge = wizard.querySelector('.wiz-step-badge');
   const iconEl = wizard.querySelector('.wiz-icon');
   const textEl = wizard.querySelector('.wiz-text');
   const dots = wizard.querySelectorAll('.wiz-dot');
+  const progressFill = wizard.querySelector('.wiz-progress-fill');
 
   spinner.classList.add('wiz-hidden');
   splashText.classList.add('wiz-hidden');
@@ -2525,6 +2528,22 @@ const showOnboardingWizard = () => new Promise(resolve => {
     textEl.textContent = s.text;
     badge.innerHTML = (step + 1) + '<span>/' + ONBOARDING_STEPS.length + '</span>';
     dots.forEach((d, i) => d.classList.toggle('active', i === step));
+
+    card.style.setProperty('--wiz-c', s.c);
+    card.style.setProperty('--wiz-c-lt', s.cLt);
+    card.style.setProperty('--wiz-c-dk', s.cDk);
+    card.style.setProperty('--wiz-c-sh', s.cSh);
+
+    // Reiniciar animaciones de entrada (tarjeta + ícono con "pop")
+    card.classList.remove('anim'); void card.offsetWidth; card.classList.add('anim');
+    iconWrap.classList.remove('anim'); void iconWrap.offsetWidth; iconWrap.classList.add('anim');
+
+    // Barra de progreso: reinicia en 0 y llena durante la duración del paso
+    progressFill.style.transition = 'none';
+    progressFill.style.width = '0%';
+    void progressFill.offsetWidth;
+    progressFill.style.transition = `width ${ONBOARDING_STEP_MS}ms linear`;
+    progressFill.style.width = '100%';
   };
   render();
 
