@@ -795,6 +795,49 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
 .toast, .toast-action { border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
 .toast-action-btn { border: 1.5px solid var(--ink); }
 
+/* ---- Popups, banners flotantes y controles del mapa: misma firma sticker ---- */
+.user-dropdown { border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); }
+.user-dropdown-item { transition: transform .15s cubic-bezier(.34,1.56,.64,1), background .15s, color .15s; }
+.user-dropdown-item:hover { transform: translateX(3px); }
+
+.install-banner { border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); }
+.install-banner-btn { border: 1.5px solid var(--ink); }
+.offline-panel { border: 2px solid var(--ink); }
+.offline-panel.show { box-shadow: 4px 4px 0 var(--ink); }
+.offline-panel-btn.primary {
+  border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink);
+  transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .15s;
+}
+.offline-panel-btn.primary:active { transform: translate(2px,2px); box-shadow: none; }
+.pick-mode-banner { border: 2px solid var(--green); box-shadow: 3px 3px 0 var(--green); }
+.gps-blocked-banner { border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+.follow-pill { border: 1.5px solid rgba(255,255,255,.5); }
+.places-loading-pill { border: 2px solid var(--ink); }
+
+.zoom-float-controls { border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+.gps-float-btn {
+  border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink);
+  transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .15s, background .2s;
+}
+.gps-float-btn:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 var(--ink); background: var(--surface2); }
+
+/* Cards del mapa (marker abierto) y clusters: mismo trazo, shadow sólida
+   (más barata que la difuminada anterior, sigue el mismo criterio de
+   performance que ya tenían para hasta ~150 markers en pantalla) */
+.fc-card { border-width: 2px; border-color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+.fc-card-wrap.is-sponsor .fc-card {
+  border-color: color-mix(in srgb, var(--sponsor-color, #70C9B0) 70%, var(--ink));
+  box-shadow: 3px 3px 0 color-mix(in srgb, var(--sponsor-color, #70C9B0) 70%, var(--ink));
+}
+.cluster-bubble { border-width: 2.5px; box-shadow: 3px 3px 0 var(--ink); }
+
+/* Dropdown de resultados de búsqueda */
+.search-results-dropdown { border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); }
+.search-result-logo { border-width: 2px; }
+
+/* Modal de "subiste de nivel" */
+.levelup-card { border-width: 2.5px; box-shadow: 4px 4px 0 var(--ink), 0 20px 60px rgba(0,0,0,.45); }
+
 </style>
 </head>
 <body>
