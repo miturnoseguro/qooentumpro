@@ -1834,7 +1834,7 @@ const openPopup = place => {
   container.classList.add('active');
   container.innerHTML = `
     <div id="pp-overlay" style="position:fixed;inset:0;background:rgba(15,23,42,0);backdrop-filter:blur(0px);-webkit-backdrop-filter:blur(0px);display:flex;align-items:center;justify-content:center;transition:background 0.3s ease, backdrop-filter 0.3s ease;z-index:10000;padding:20px;">
-      <div id="pp-card" class="pp-card" style="width:100%;max-width:370px;border-radius:24px;border:2.5px solid var(--ink);overflow:hidden;transform:translateY(40px) scale(0.93);opacity:0;transition:transform 0.38s cubic-bezier(0.34,1.56,0.64,1), opacity 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;max-height:calc(100dvh - 40px);display:flex;flex-direction:column;">
+      <div id="pp-card" class="pp-card" style="width:100%;max-width:370px;border-radius:24px;border:2.5px solid var(--ink);overflow:hidden;transform:translateY(40px) scale(0.93);opacity:0;transition:transform 0.38s cubic-bezier(0.34,1.56,0.64,1), opacity 0.28s ease, border-color 0.28s ease;max-height:calc(100dvh - 40px);display:flex;flex-direction:column;">
         <div style="overflow-y:auto;-ms-overflow-style:none;scrollbar-width:none;">
           <div id="pp-header"></div>
           <div id="pp-body"></div>
