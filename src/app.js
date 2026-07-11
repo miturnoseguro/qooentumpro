@@ -2489,6 +2489,65 @@ const renderPopup = () => {
 };
 
 // ============================================================
+// ONBOARDING WIZARD (se muestra ~3s antes de pedir el GPS)
+// ============================================================
+const ONBOARDING_STEPS = [
+  { icon: '🙋', text: 'Ayudás a otras personas reportando cómo está un lugar' },
+  { icon: '📍', text: 'Te logueás y contás cuánta gente hay en el momento' },
+  { icon: '🎁', text: 'Sumás puntos y los canjeás por premios' },
+];
+const ONBOARDING_STEP_MS = 1000; // 3 pasos x 1s = 3s totales
+
+const showOnboardingWizard = () => new Promise(resolve => {
+  const wizard = document.getElementById('onboarding-wizard');
+  const spinner = document.getElementById('splash-spinner');
+  const splashText = document.getElementById('splash-text');
+  if (!wizard) { resolve(); return; }
+
+  // Si ya vio el onboarding en este dispositivo, no lo repetimos.
+  let seen = false;
+  try { seen = localStorage.getItem('qoo_onboarding_seen') === '1'; } catch (e) {}
+  if (seen) { resolve(); return; }
+
+  const badge = wizard.querySelector('.wiz-step-badge');
+  const iconEl = wizard.querySelector('.wiz-icon');
+  const textEl = wizard.querySelector('.wiz-text');
+  const dots = wizard.querySelectorAll('.wiz-dot');
+
+  spinner.classList.add('wiz-hidden');
+  splashText.classList.add('wiz-hidden');
+  wizard.classList.add('show');
+
+  let step = 0;
+  const render = () => {
+    const s = ONBOARDING_STEPS[step];
+    iconEl.textContent = s.icon;
+    textEl.textContent = s.text;
+    badge.innerHTML = (step + 1) + '<span>/' + ONBOARDING_STEPS.length + '</span>';
+    dots.forEach((d, i) => d.classList.toggle('active', i === step));
+  };
+  render();
+
+  const finish = () => {
+    try { localStorage.setItem('qoo_onboarding_seen', '1'); } catch (e) {}
+    wizard.classList.remove('show');
+    spinner.classList.remove('wiz-hidden');
+    splashText.classList.remove('wiz-hidden');
+    resolve();
+  };
+
+  const interval = setInterval(() => {
+    step++;
+    if (step >= ONBOARDING_STEPS.length) {
+      clearInterval(interval);
+      finish();
+      return;
+    }
+    render();
+  }, ONBOARDING_STEP_MS);
+});
+
+// ============================================================
 // INIT
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -2498,7 +2557,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateHUD();
   restoreSession();
   maybeStartSync();
-  requestGpsBeforeMap();
+  showOnboardingWizard().then(() => requestGpsBeforeMap());
 });
 
 document.addEventListener('click', e => {
