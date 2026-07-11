@@ -1607,11 +1607,13 @@ const ppComputed = () => {
     statBg: `rgba(212,175,55,0.08)`, statBorder: `1px solid rgba(212,175,55,0.35)`,
     text: '#F5F0E6', text2: '#C9C2B4', text3: '#9A9384',
     btnBg: '#151517', btnBorder: 'rgba(212,175,55,0.4)', pad: '13px 14px 16px',
+    btnText: '#F5F0E6', btnText3: '#9A9384',
   } : isPremium ? {
     cardBg: `linear-gradient(180deg, color-mix(in srgb, ${sponsorColor} 14%, #fff) 0%, rgba(29,29,29) 48%)`,
     statBg: `#0F0F11`, statBorder: `1px solid rgba(255,255,255,0.08)`,
     text: '#fff', text2: '#475569', text3: '#64748B',
     btnBg: '#fff', btnBorder: '#E2E8F0', pad: '13px 14px 16px',
+    btnText: '#0F172A', btnText3: '#64748B',
   } : null;
   const onCooldown = pp.cooldownMs > 0 && !pp.submitted;
   const nearby = canReportPlace(place);
@@ -1724,7 +1726,7 @@ const ppRenderBody = () => {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px;">
       ${voteOptions.map(({idx,label,pts,color}) => {
         const isSel = selected === idx;
-        return `<button class="pp-vote-btn" data-idx="${idx}" style="border:2px solid ${isSel ? color : stickerColor};border-radius:14px;background:${isSel ? color : (T ? T.btnBg : '#fff')};padding:9px 8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:${isSel ? '#fff' : (T ? T.text : '#000')};text-align:left;font-family:inherit;transform:${isSel ? 'translate(-1px,-1px)' : 'none'};box-shadow:${isSel ? `3px 3px 0 ${color}` : `2px 2px 0 ${stickerColor}`};">
+        return `<button class="pp-vote-btn" data-idx="${idx}" style="border:2px solid ${isSel ? color : stickerColor};border-radius:14px;background:${isSel ? color : (T ? T.btnBg : '#fff')};padding:9px 8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:${isSel ? '#fff' : (T ? T.btnText : '#000')};text-align:left;font-family:inherit;transform:${isSel ? 'translate(-1px,-1px)' : 'none'};box-shadow:${isSel ? `3px 3px 0 ${color}` : `2px 2px 0 ${stickerColor}`};">
           <span style="width:8px;height:8px;border-radius:50%;background:${isSel ? 'rgba(255,255,255,0.55)' : color};display:inline-block;flex-shrink:0;"></span>
           ${escHtml(label)}
           <span style="margin-left:auto;font-size:9px;font-weight:800;color:#fff;background:${color};padding:1px 6px;border-radius:40px;">${pts}</span>
