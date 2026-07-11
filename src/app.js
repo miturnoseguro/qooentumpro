@@ -2496,7 +2496,7 @@ const ONBOARDING_STEPS = [
   { icon: '📍', text: 'Te logueás y contás cuánta gente hay en el momento' },
   { icon: '🎁', text: 'Sumás puntos y los canjeás por premios' },
 ];
-const ONBOARDING_STEP_MS = 1000; // 3 pasos x 1s = 3s totales
+const ONBOARDING_STEP_MS = 1500; // 3 pasos x 1s = 3s totales
 
 const showOnboardingWizard = () => new Promise(resolve => {
   const wizard = document.getElementById('onboarding-wizard');
