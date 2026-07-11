@@ -1874,7 +1874,7 @@ const ppApplyCardTheme = () => {
   card.style.background = T ? T.cardBg : '#fff';
   card.style.borderColor = stickerColor;
   card.style.boxShadow = (isPremium || isBlack)
-  ? `4px 4px 0 ${stickerColor}, 0 24px 64px rgba(0,0,0,0.22)`
+  ? `1px 1px 0 ${stickerColor}, 0 24px 64px rgba(0,0,0,0.22)`
   : (sponsor
       ? `4px 4px 0 ${stickerColor}, 0 24px 64px rgba(0,0,0,0.28)`
       : `4px 4px 0 ${stickerColor}, 0 24px 64px rgba(0,0,0,0.28)`);
