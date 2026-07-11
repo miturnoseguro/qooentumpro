@@ -74,10 +74,10 @@ const getStatus = p => {
 const WAIT  = ['Sin espera','~5 min','~15 min','+30 min'];
 const TREND = ['↘ Baja','→ Estable','↗ Sube','↗ Sube'];
 // Tono gold fijo para sponsors premium (no depende del badge_color que traiga el comercio) — la marca (verde) se reserva solo para login y link al sitio
-const SPONSOR_GOLD = '#D4AF37';
+const SPONSOR_GOLD = '#7f681e';
 // Tier "Black": nivel superior a premium — onyx con hairline dorado en vez de dorado sólido.
 const SPONSOR_BLACK = '#0A0A0C';
-const SPONSOR_BLACK_ACCENT = '#D4AF37';
+const SPONSOR_BLACK_ACCENT = '#7f681e';
 const BRAND_GREEN = '#00C48C';
 const VOTE_PTS = [10,10,15,20];
 const LEVEL_TITLES = ['Novato','Explorador','Cazador de Filas','Maestro del Mapa','Leyenda Urbana'];
