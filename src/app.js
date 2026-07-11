@@ -1747,7 +1747,7 @@ const ppRenderBody = () => {
       <div style="display:flex;gap:6px;margin-bottom:12px;">
         ${[{val:place.reporters,lbl:'Reportes'}, {val:WAIT[place.status],lbl:'Espera'}, {val:TREND[place.status],lbl:'Tendencia'}].map(({val,lbl}) => `
           <div style="flex:1;background:${T ? T.statBg : '#F1F5F9'};border:${T ? T.statBorder : 'none'};border-radius:9px;padding:6px 8px;text-align:center;">
-            <p style="margin:0;font-size:13px;font-weight:600;color:${T ? T.text : '#0F172A'};letter-spacing:-0.2px;">${val}</p>
+            <p style="margin:0;font-size:13px;font-weight:600;color:${T ? T.text : '#7aa798'};letter-spacing:-0.2px;">${val}</p>
             <p style="margin:1px 0 0;font-size:8px;color:${T ? T.text3 : '#64748B'};text-transform:uppercase;letter-spacing:0.4px;font-weight:600;">${lbl}</p>
           </div>`).join('')}
       </div>
@@ -1832,7 +1832,7 @@ const openPopup = place => {
   container.classList.add('active');
   container.innerHTML = `
     <div id="pp-overlay" style="position:fixed;inset:0;background:rgba(15,23,42,0);backdrop-filter:blur(0px);-webkit-backdrop-filter:blur(0px);display:flex;align-items:center;justify-content:center;transition:background 0.3s ease, backdrop-filter 0.3s ease;z-index:10000;padding:20px;">
-      <div id="pp-card" style="width:100%;max-width:370px;border-radius:22px;overflow:hidden;transform:translateY(40px) scale(0.93);opacity:0;transition:transform 0.38s cubic-bezier(0.34,1.56,0.64,1), opacity 0.28s ease;max-height:calc(100dvh - 40px);display:flex;flex-direction:column;">
+      <div id="pp-card" style="width:100%;max-width:370px;border-radius:22px;border:2.5px solid var(--ink);overflow:hidden;transform:translateY(40px) scale(0.93);opacity:0;transition:transform 0.38s cubic-bezier(0.34,1.56,0.64,1), opacity 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;max-height:calc(100dvh - 40px);display:flex;flex-direction:column;">
         <div style="overflow-y:auto;-ms-overflow-style:none;scrollbar-width:none;">
           <div id="pp-header"></div>
           <div id="pp-body"></div>
@@ -1870,11 +1870,15 @@ const ppApplyCardTheme = () => {
   const card = document.getElementById('pp-card');
   if (!card) return;
   card.style.background = T ? T.cardBg : '#fff';
+  const borderColor = (isPremium || isBlack)
+    ? `color-mix(in srgb, ${sponsorColor} 70%, var(--ink))`
+    : 'var(--ink)';
+  card.style.borderColor = borderColor;
   card.style.boxShadow = (isPremium || isBlack)
-  ? '0 24px 64px rgba(0,0,0,0.22)'
+  ? `4px 4px 0 ${borderColor}, 0 24px 64px rgba(0,0,0,0.22)`
   : (sponsor
-      ? '0 24px 64px rgba(0,0,0,0.28)'
-      : '0 24px 64px rgba(0,0,0,0.28)');
+      ? `4px 4px 0 ${borderColor}, 0 24px 64px rgba(0,0,0,0.28)`
+      : `4px 4px 0 ${borderColor}, 0 24px 64px rgba(0,0,0,0.28)`);
 };
 
 const ppClose = () => {
