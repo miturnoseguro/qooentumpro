@@ -1033,9 +1033,6 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
         <div class="gps-float-btn" id="gps-btn" onclick="onGpsBtnClick()" title="Centrar / seguir mi ubicación">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7" stroke-dasharray="2 3"/></svg>
         </div>
-        <div class="gps-float-btn" id="offline-dl-btn" onclick="onOfflineBtnClick()" title="Descargar mi zona para usar el mapa sin conexión">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        </div>
       </div>
       <div class="zoom-float-controls">
         <button class="zoom-btn" id="zoom-in-btn" onclick="onZoomIn()" title="Acercar">
@@ -1065,22 +1062,6 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
         </div>
         <button class="install-banner-btn" onclick="installPwa()">Instalar</button>
         <button class="install-banner-close" onclick="document.getElementById('install-banner').style.display='none'">✕</button>
-      </div>
-      <div class="offline-panel" id="offline-panel">
-        <div class="offline-panel-head">
-          <span class="offline-panel-icon" id="offline-panel-icon">⬇️</span>
-          <div class="offline-panel-body">
-            <div class="offline-panel-title" id="offline-panel-title">Descargar tu zona</div>
-            <div class="offline-panel-sub" id="offline-panel-sub">Para usar el mapa sin conexión</div>
-          </div>
-          <button class="offline-panel-close" id="offline-panel-close" onclick="closeOfflinePanel()">✕</button>
-        </div>
-        <div class="offline-panel-bar-track" id="offline-panel-bar-track" style="display:none">
-          <div class="offline-panel-bar-fill" id="offline-panel-bar-fill"></div>
-        </div>
-        <div class="offline-panel-actions" id="offline-panel-actions">
-          <button class="offline-panel-btn primary" id="offline-panel-start" onclick="startOfflineDownloadFromUI()">Descargar ahora</button>
-        </div>
       </div>
       <nav class="bottom-nav">
         <button class="nav-btn active" onclick="switchTab('map')">
