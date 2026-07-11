@@ -991,14 +991,26 @@ const prefetch3km = async (lat, lng) => {
   }
 };
 
+// Último punto sobre el que sí corrimos el trabajo "pesado" (guardar
+// ubicación, chequear sponsor pinneado, chequear check-in). Con GPS de alta
+// precisión y sin caché (maximumAge:0), pos puede llegar cada 1-2s aunque
+// estés parado — sin este filtro, se recalculaba TODO (incluyendo un
+// filter+sort sobre placeStore entero en maybeCheckin) en cada tick, con el
+// usuario quieto. Ahora ese trabajo solo corre si te moviste de verdad.
+let _lastHeavyGpsFix = null;
+const GPS_HEAVY_THRESHOLD_M = 8;
 const onGps = pos => {
   const {latitude:lat, longitude:lng, accuracy} = pos.coords;
   if (!validCoord(lat,lng)) return;
   if (gpsEverReceived && accuracy > 150) return;
   const isFirstFix = !gpsEverReceived;
   userLat = lat; userLng = lng; gpsEverReceived = true;
-  saveLastLocation(lat,lng);
-  checkPinnedSponsor(lat,lng);
+  const moved = !_lastHeavyGpsFix || dist(lat,lng,_lastHeavyGpsFix.lat,_lastHeavyGpsFix.lng) >= GPS_HEAVY_THRESHOLD_M;
+  if (isFirstFix || moved) {
+    _lastHeavyGpsFix = { lat, lng };
+    saveLastLocation(lat,lng);
+    checkPinnedSponsor(lat,lng);
+  }
   if (isFirstFix) maybeSuggestOfflineDownload();
   if (mlReady) updateUserMarker(lat,lng);
   if (mlReady && mlMap && validCoord(lat,lng)) {
@@ -1022,7 +1034,7 @@ const onGps = pos => {
     updateGpsUI();
     cercaLoaded = false;
     cercaLoadPlaces();
-  } else {
+  } else if (moved) {
     const key = tileKey(lat,lng);
     if (key !== window._lastGpsTileKey) { window._lastGpsTileKey = key; ensurePlaces(lat,lng).then(() => maybeCheckin(lat,lng)); }
     else maybeCheckin(lat,lng);
@@ -1257,10 +1269,7 @@ const _buildMarkers = (placesToShow) => {
   if (!mlMap || !mlReady) return;
   placesToShow = placesToShow || nearbyPlaces;
   placesToShow = placesToShow.filter(p => validCoord(p.lat,p.lng));
-  // Ya no agrupamos en clusters: siempre se muestran las cards individuales,
-  // en cualquier nivel de zoom.
-  clearClusterMarkers();
-  if (!placesToShow.length) { clearPlaceMarkers(); hidePlacesLoading(0); return; }
+  if (!placesToShow.length) { clearClusterMarkers(); clearPlaceMarkers(); hidePlacesLoading(0); return; }
   const isMobile = window.innerWidth < 768;
   const MAX = isMobile ? 60 : 150;
   const center = mlMap.getCenter();
@@ -1283,20 +1292,56 @@ const _buildMarkers = (placesToShow) => {
   const south = bounds.getSouth() - padLat, north = bounds.getNorth() + padLat;
   const inView = placesToShow.filter(p => p.lng >= west && p.lng <= east && p.lat >= south && p.lat <= north);
 
-  const already = inView.filter(p => mlMarkers[p.id]);
-  const rest = inView.filter(p => !mlMarkers[p.id]);
-  let toRender;
-  if (already.length >= MAX) {
-    toRender = [...already].sort(byDist).slice(0, MAX);
+  // Sponsors premium/black: SIEMPRE se muestran como card individual y NUNCA
+  // se agrupan en una burbuja — son los que pagan, tienen prioridad. Van
+  // aparte del cupo (MAX) que se usa para el resto de los lugares.
+  const isTopSponsor = p => p.sponsor?.tier === 'premium' || p.sponsor?.tier === 'black';
+  const premium = inView.filter(isTopSponsor);
+  const rest = inView.filter(p => !isTopSponsor(p));
+
+  // El resto se agrupa por grilla (más chica cuanto más zoom, ver
+  // clusterGrid): si en una celda hay 2+ lugares normales, se muestra como
+  // una sola burbuja "+N lugares" en vez de amontonar cards. Si hay 1 solo
+  // en la celda, se muestra como card normal (agrupar un solo lugar no
+  // suma nada).
+  const zoom = mlMap.getZoom();
+  const cellGroups = computeClusters(rest, clusterGrid(zoom));
+  const individualRest = [];
+  const bubbleClusters = [];
+  cellGroups.forEach(c => { if (c.count > 1) bubbleClusters.push(c); else individualRest.push(c.places[0]); });
+
+  // Burbujas de cluster: son pocas, se recrean enteras cada vez (no vale la
+  // pena diffearlas como a las cards). Tocarlas te lleva/zoomea a esa zona.
+  clearClusterMarkers();
+  bubbleClusters.forEach(c => {
+    const el = makeCluster(c);
+    el.addEventListener('click', () => {
+      vibrate(8);
+      mlMap.easeTo({ center: [c.lng, c.lat], zoom: Math.min(zoom + 2.5, 19), duration: 400 });
+    });
+    const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([c.lng, c.lat]).addTo(mlMap);
+    mlClusterMarkers.push(marker);
+  });
+
+  // Cupo de cards individuales: premium entra SIEMPRE (no cuenta para el
+  // corte), el resto llena lo que queda del MAX priorizando lo ya visible.
+  const already = individualRest.filter(p => mlMarkers[p.id]);
+  const freshRest = individualRest.filter(p => !mlMarkers[p.id]);
+  const budget = Math.max(0, MAX - premium.length);
+  let toRenderRest;
+  if (already.length >= budget) {
+    toRenderRest = [...already].sort(byDist).slice(0, budget);
   } else {
-    const restSorted = [...rest].sort(byDist).slice(0, MAX - already.length);
-    toRender = [...already, ...restSorted];
+    const restSorted = [...freshRest].sort(byDist).slice(0, budget - already.length);
+    toRenderRest = [...already, ...restSorted];
   }
+  const toRender = [...premium, ...toRenderRest];
   const renderIds = new Set(toRender.map(p => p.id));
 
   // Sacamos del mapa solo las cards que ya no corresponden (lugares que
-  // quedaron fuera de rango). Las que siguen vigentes NO se tocan, así se
-  // evita el destruir-y-recrear que causaba el titileo al hacer zoom.
+  // quedaron fuera de rango, o que ahora quedaron agrupados en una
+  // burbuja). Las que siguen vigentes NO se tocan, así se evita el
+  // destruir-y-recrear que causaba el titileo al hacer zoom.
   Object.keys(mlMarkers).forEach(id => {
     if (!renderIds.has(id)) { mlMarkers[id].marker.remove(); delete mlMarkers[id]; }
   });
@@ -2171,14 +2216,32 @@ const applyLoggedUI = () => {
   updateHUD();
   maybeStartSync();
 };
+// checkSession: pregunta a Supabase si ya hay sesión activa. Se usa tanto al
+// arrancar la app como cada vez que la app vuelve a primer plano (ver abajo).
+// FIX login: antes esto solo corría una vez, al cargar la app. Como el login
+// con Google te saca de la PWA instalada y te lleva al navegador, cuando
+// volvías a la app (que seguía viva en memoria, no se recargaba) nunca se
+// volvía a preguntar por la sesión → quedabas "deslogueado" aunque el login
+// en Google sí había funcionado. Ahora se re-chequea cada vez que la app
+// vuelve a estar visible/en foco.
+const checkSession = async () => {
+  if (isLoggedIn) return;
+  const { data: { session } } = await getSession();
+  if (session?.user) await hydrateFromAuthUser(session.user);
+};
 // restoreSession: chequea si ya hay sesión de Supabase (ej. volviendo del
 // redirect de Google) y se suscribe a cambios futuros de auth.
 const restoreSession = async () => {
-  const { data: { session } } = await getSession();
-  if (session?.user) await hydrateFromAuthUser(session.user);
+  await checkSession();
   onAuthChange(async user => {
     if (user && !isLoggedIn) { await hydrateFromAuthUser(user); resetLoginBtn(); hideToastAction(); showToast(`👋 ¡Hola, ${(currentUser.name||'').split(' ')[0] || currentUser.email}!`); }
   });
+  // Re-chequeo al volver a la app: cubre el caso de Google OAuth abriéndose
+  // en el navegador del sistema (la app PWA sigue viva de fondo y por sí
+  // sola nunca se entera que ya hay sesión nueva).
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkSession(); });
+  window.addEventListener('focus', checkSession);
+  window.addEventListener('pageshow', e => { if (e.persisted) checkSession(); });
 };
 const hydrateFromAuthUser = async (authUser) => {
   currentUser = {

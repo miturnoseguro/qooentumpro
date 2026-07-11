@@ -87,8 +87,15 @@ export const apiPost = async (action, payload = {}) => {
 };
 
 // ---- Auth con Google (reemplaza el flujo manual de accounts.google.com/gsi) ----
+// redirectTo explícito → siempre vuelve a la raíz del sitio (mismo scope que
+// el manifest de la PWA), en vez del href exacto con el que se llamó. Esto
+// ayuda a que, al volver del navegador, Android/iOS reconozcan el regreso
+// como "la misma app instalada" en vez de una página suelta.
 export const signInWithGoogle = () =>
-  supabase.auth.signInWithOAuth({ provider: 'google' });
+  supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin + '/' },
+  });
 
 export const signOut = () => supabase.auth.signOut();
 
