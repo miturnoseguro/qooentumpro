@@ -171,7 +171,16 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
    normal) — eran la causa principal del lag/tirón al hacer zoom. box-shadow
    se ve prácticamente igual y es mucho más barato. */
 .fc-card { width: 160px; background: rgba(255,255,255,.98); border: 1.5px solid var(--border); border-radius: 22px; padding: 5px 10px 8px; font-family: inherit; text-align: left; box-shadow: 0 3px 10px rgba(15,23,42,.16); }
-.fc-card-wrap.is-sponsor .fc-card { background: linear-gradient(138deg, color-mix(in srgb, #ffffff 16%, color-mix(in srgb, var(--sponsor-color, #000000) 4%, #fff)) 0%, rgb(219 175 35) 58%); border-color: color-mix(in srgb, var(--sponsor-color, #70C9B0) 45%, var(--border)); }
+.fc-card-wrap.is-sponsor .fc-card {
+  border-color: color-mix(in srgb, var(--sponsor-color, #D4A017) 75%, var(--ink));
+  box-shadow: 3px 3px 0 color-mix(in srgb, var(--sponsor-color, #D4A017) 75%, var(--ink));
+    background: linear-gradient(
+    138deg,
+    color-mix(in srgb, #fff3c4 22%, color-mix(in srgb, var(--sponsor-color, #B8860B) 10%, #fff)) 0%,
+    rgb(232 185 35) 42%,
+    rgb(184 134 11) 100%
+  );
+}
 .fc-card-head { display: flex; gap: 6px; align-items: center; }
 .fc-card-logo { position: relative; width: 24px; height: 24px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; overflow: visible; }
 .fc-card-logo img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }
