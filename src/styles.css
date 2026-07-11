@@ -1,15 +1,17 @@
 /* ===== RESET y variables ===== */
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap');
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 :root {
   --green: #00C48C; --green-lt: #E8FBF5; --green-dk: #009E72;
   --yellow: #F59E0B; --yellow-lt: #FFFBEB;
   --orange: #F97316; --orange-lt: #FFF7ED;
   --red: #EF4444; --red-lt: #FEF2F2;
-  --blue: #6366F1; --blue-lt: #EEF2FF;
+  --blue: #70C9B0; --blue-lt: #E7F7F1;
   --purple: #A855F7; --gold: #F59E0B;
   --bg: #F0F4F8; --surface: #FFFFFF; --surface2: #F1F5F9;
   --border: #E2E8F0; --border2: #CBD5E1;
   --text: #0F172A; --text2: #64748B; --text3: #94A3B8;
+  --ink: #0F172A;
   --radius: 12px; --radius-lg: 20px; --radius-xl: 28px;
   --shadow-sm: 0 1px 3px rgba(15,23,42,.06);
   --shadow: 0 4px 16px rgba(15,23,42,.08);
@@ -150,7 +152,7 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
    normal) — eran la causa principal del lag/tirón al hacer zoom. box-shadow
    se ve prácticamente igual y es mucho más barato. */
 .fc-card { width: 160px; background: rgba(255,255,255,.98); border: 1.5px solid var(--border); border-radius: 22px; padding: 5px 10px 8px; font-family: inherit; text-align: left; box-shadow: 0 3px 10px rgba(15,23,42,.16); }
-.fc-card-wrap.is-sponsor .fc-card { background: linear-gradient(180deg, color-mix(in srgb, var(--sponsor-color, #6366F1) 10%, #fff) 0%, rgba(255,255,255,.98) 55%); border-color: color-mix(in srgb, var(--sponsor-color, #6366F1) 45%, var(--border)); }
+.fc-card-wrap.is-sponsor .fc-card { background: linear-gradient(180deg, color-mix(in srgb, var(--sponsor-color, #70C9B0) 10%, #fff) 0%, rgba(255,255,255,.98) 55%); border-color: color-mix(in srgb, var(--sponsor-color, #70C9B0) 45%, var(--border)); }
 .fc-card-head { display: flex; gap: 6px; align-items: center; }
 .fc-card-logo { position: relative; width: 24px; height: 24px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; overflow: visible; }
 .fc-card-logo img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }
@@ -463,23 +465,40 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
 
 /* ===== NC CARD ===== */
 .nc-card {
-  background: #fff; border: 1px solid var(--border);
+  background: #fff; border: 2.5px solid var(--green-dk);
   border-radius: var(--radius-lg); padding: 12px;
-  cursor: pointer; transition: all .2s ease;
+  cursor: pointer; transition: transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s;
   display: flex; gap: 10px; align-items: flex-start;
-  animation: ncCardIn .25s ease both;
+  box-shadow: 4px 4px 0 var(--green-dk);
+  animation: cardPopIn .36s cubic-bezier(.34,1.56,.64,1) both;
   margin-top: 8px;
+  will-change: transform, opacity;
 }
-@keyframes ncCardIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform: translateY(0); } }
-.nc-card:hover { border-color: var(--green); box-shadow: 0 4px 16px rgba(0,196,140,.11); transform: translateY(-1px); }
-.nc-logo { width: 44px; height: 44px; border-radius: var(--radius); background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; overflow: hidden; }
+/* Entrada tipo "juego": sólo transform + opacity (compositor puro, sin blur
+   ni layout/paint por frame), un único ciclo corto al montarse cada card.
+   Escalona apenas las primeras cards para dar sensación de "reparto" sin
+   acumular demora en listas largas (del 7mo en adelante, delay 0). */
+@keyframes cardPopIn {
+  0%   { opacity: 0; transform: translateY(14px) scale(.86) rotate(-1.5deg); }
+  65%  { opacity: 1; transform: translateY(-2px) scale(1.02) rotate(.6deg); }
+  100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+}
+.nc-card:nth-of-type(1) { animation-delay: 0s; }
+.nc-card:nth-of-type(2) { animation-delay: .035s; }
+.nc-card:nth-of-type(3) { animation-delay: .07s; }
+.nc-card:nth-of-type(4) { animation-delay: .105s; }
+.nc-card:nth-of-type(5) { animation-delay: .14s; }
+.nc-card:nth-of-type(6) { animation-delay: .175s; }
+@media (prefers-reduced-motion: reduce) { .nc-card { animation: none; } }
+.nc-card:hover { transform: translate(-1px,-1px); box-shadow: 5px 5px 0 var(--green-dk); }
+.nc-logo { width: 44px; height: 44px; border-radius: var(--radius); background: var(--surface2); border: 2px solid var(--green-dk); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; overflow: hidden; }
 .nc-logo img { width: 100%; height: 100%; object-fit: contain; }
 .nc-body { flex: 1; min-width: 0; }
 .nc-top { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 2px; }
-.nc-name { font-size: 13px; font-weight: 800; color: var(--border); line-height: 1.2; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.nc-badge-open { font-size: 8px; font-weight: 800; padding: 2px 6px; border-radius: 40px; flex-shrink: 0; margin-top: 2px; }
-.nc-badge-open.open { background: var(--green-lt); color: var(--green-dk); }
-.nc-badge-open.closed { background: var(--red-lt); color: var(--red); }
+.nc-name { font-family: 'Baloo 2', 'Inter', system-ui, sans-serif; font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.2; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nc-badge-open { font-size: 8px; font-weight: 800; padding: 2px 6px; border-radius: 40px; border: 1.5px solid transparent; flex-shrink: 0; margin-top: 2px; }
+.nc-badge-open.open { background: var(--green); color: #fff; }
+.nc-badge-open.closed { background: var(--red); color: #fff; }
 .nc-meta { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
 .nc-type { font-size: 10px; color: var(--text3); font-weight: 600; }
 .nc-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--border2); }
@@ -490,28 +509,30 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
 .nc-slabel { font-size: 9px; font-weight: 700; color: #fff; }
 .nc-ssub { font-size: 9px; color: rgba(255,255,255,.7); margin-left: auto; }
 .nc-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; padding-top: 1px; }
-.nc-rating { display: flex; align-items: center; gap: 2px; font-size: 11px; font-weight: 800; color: var(--text); }
-.nc-star { color: #F59E0B; }
+.nc-rating { display: flex; align-items: center; gap: 2px; font-family: 'Baloo 2', 'Inter', system-ui, sans-serif; font-size: 11px; font-weight: 700; color: var(--text); }
+.nc-star { color: var(--yellow); }
 .nc-rn { font-size: 9px; color: var(--text3); font-weight: 500; }
 .nc-report-btn {
-  background: var(--green-lt); border: 1.5px solid var(--green);
+  background: var(--green); border: 2px solid var(--green-dk);
   border-radius: 40px; padding: 4px 10px; font-size: 10px; font-weight: 800;
-  color: var(--green-dk); cursor: pointer; font-family: inherit;
-  white-space: nowrap; transition: all .18s;
+  color: #fff; cursor: pointer; font-family: inherit;
+  white-space: nowrap; transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .15s;
+  box-shadow: 2px 2px 0 var(--green-dk);
 }
-.nc-report-btn:hover { background: var(--green); color: #fff; }
-.nc-card.selected { border-color: var(--green); background: var(--green-lt); box-shadow: 0 4px 16px rgba(0,196,140,.15); }
+.nc-report-btn:hover { background: var(--green-dk); }
+.nc-report-btn:active { transform: translate(2px,2px); box-shadow: none; }
+.nc-card.selected { border-color: var(--green); background: var(--green-lt); box-shadow: 4px 4px 0 var(--green); }
 .nc-card.is-sponsor {
-  margin-top: 10px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--sponsor-color, #6366F1) 10%, #fff) 0%, rgba(255,255,255,.98) 55%);
-  border-color: color-mix(in srgb, var(--sponsor-color, #6366F1) 45%, var(--border));
-  box-shadow: 0 2px 10px color-mix(in srgb, var(--sponsor-color, #6366F1) 18%, transparent);
+  margin-top: 10px; border-width: 2.5px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--sponsor-color, #70C9B0) 12%, #fff) 0%, rgba(255,255,255,.98) 55%);
+  border-color: color-mix(in srgb, var(--sponsor-color, #70C9B0) 70%, var(--text));
+  box-shadow: 4px 4px 0 color-mix(in srgb, var(--sponsor-color, #70C9B0) 70%, var(--text));
 }
 .nc-card.is-sponsor:hover { border-color: var(--sponsor-color, var(--green)); }
-.nc-card.is-sponsor .nc-logo { position: relative; overflow: visible; }
+.nc-card.is-sponsor .nc-logo { position: relative; overflow: visible; border-color: color-mix(in srgb, var(--sponsor-color, #70C9B0) 70%, var(--text)); }
 .nc-sponsor-badge {
   margin-left: auto; font-size: 8px; font-weight: 800; color: #fff;
-  background: var(--sponsor-color, #6366F1); padding: 2px 7px; border-radius: 40px;
+  background: var(--sponsor-color, #70C9B0); padding: 2px 7px; border-radius: 40px;
   white-space: nowrap; flex-shrink: 0;
 }
 .nc-group { margin-bottom: 16px; }
@@ -680,3 +701,77 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
   .nc-logo { width: 36px; height: 36px; font-size: 18px; }
   .nc-name { font-size: 12px; }
 }
+
+/* ========================================================================
+   ESTILO "DESCONTRACTURADO" (sticker) — capa final, no reemplaza nada de
+   arriba: solo suma borde grueso + sombra dura desplazada, tipografía
+   Baloo 2 en textos protagonistas y feedback de "aplastado" al tocar.
+   Todo con transform/opacity/box-shadow sólido — sin blur ni backdrop-filter
+   nuevos, para no repetir el problema de performance que ya resolvieron
+   en las cards del mapa.
+   ======================================================================== */
+
+/* Topbar y chip de usuario */
+.topbar { border-bottom: 2.5px solid var(--ink); }
+.user-chip {
+  border-width: 2px; border-color: var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+  transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .15s, background .2s, border-color .2s;
+}
+.user-chip:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 var(--ink); }
+.pts-label { font-family: 'Baloo 2', 'Inter', system-ui, sans-serif; }
+.login-topbar-btn {
+  border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink);
+  transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .15s;
+}
+.login-topbar-btn:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 var(--ink); }
+.login-topbar-btn:active { transform: translate(1px,1px); box-shadow: 1px 1px 0 var(--ink); }
+
+/* Buscador */
+.map-search-bar, .search-results-dropdown {
+  border-width: 2px; border-color: var(--ink);
+}
+.map-search-bar { box-shadow: 3px 3px 0 var(--ink); }
+.map-search-bar:focus-within { box-shadow: 3px 3px 0 var(--green); border-color: var(--green); }
+
+/* Chips de radio y filtro */
+.cerca-r-btn, .cerca-f-chip, .cerca-sort-btn {
+  border-width: 2px; font-family: 'Baloo 2', 'Inter', system-ui, sans-serif;
+  transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .15s, background .18s, color .18s, border-color .18s;
+}
+.cerca-r-btn.active { border-color: var(--ink); box-shadow: 2px 2px 0 var(--ink); }
+.cerca-f-chip.active { box-shadow: 2px 2px 0 var(--blue); }
+.cerca-r-btn:active, .cerca-f-chip:active { transform: translate(1px,1px); }
+.stats-bar .cerca-count { font-family: 'Baloo 2', 'Inter', system-ui, sans-serif; }
+
+/* Bottom nav */
+.bottom-nav { border-width: 2.5px; border-color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
+.nav-btn.is-main.active { border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); }
+
+/* Ranking */
+.rank-name, .rank-pts-val, .panel-header { font-family: 'Baloo 2', 'Inter', system-ui, sans-serif; }
+.rank-row.is-me { border-left-width: 4px; }
+
+/* Premios */
+.prize-row {
+  border-width: 2px; border-color: var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+  transition: transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s;
+}
+.prize-row:hover { transform: translate(-1px,-2px); box-shadow: 4px 5px 0 var(--ink); }
+.prize-name { font-family: 'Baloo 2', 'Inter', system-ui, sans-serif; }
+
+/* Check-in */
+.checkin-card { border: 2.5px solid var(--ink); }
+.checkin-header-title { font-family: 'Baloo 2', 'Inter', system-ui, sans-serif; }
+.checkin-confirm-btn, .checkin-skip-main {
+  border: 2px solid var(--ink);
+  transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .15s, background .2s;
+}
+.checkin-confirm-btn { box-shadow: 3px 3px 0 var(--ink); }
+.checkin-skip-main { box-shadow: 2px 2px 0 var(--ink); }
+.checkin-confirm-btn:active, .checkin-skip-main:active { transform: translate(2px,2px); box-shadow: none; }
+
+/* Toast de puntos/acciones */
+.toast, .toast-action { border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+.toast-action-btn { border: 1.5px solid var(--ink); }
