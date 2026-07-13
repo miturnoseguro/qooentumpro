@@ -1719,7 +1719,7 @@ const ppRenderBody = () => {
     </div>` : '';
 
   const nearOkHtml = (isLoggedIn && nearby && !onCooldown) ? `
-    <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;padding:7px 10px;background:#E8FBF5;border-radius:10px;border:1px solid #A8EDD8;">
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;padding:2px 10px;background:#E8FBF5;border-radius:10px;border:1px solid #A8EDD8;">
       <span style="font-size:14px;">✅</span>
       <span style="font-size:12px;font-weight:700;color:#007A59;">Estás a ${distTo ?? '?'}m · podés reportar</span>
     </div>` : '';
