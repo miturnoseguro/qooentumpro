@@ -1179,10 +1179,7 @@ const onGps = pos => {
     cercaLoadPlaces();
   } else if (moved) {
     const key = tileKey(lat,lng);
-    if (key !== window._lastGpsTileKey) {
-      console.log('[DEBUG] GPS tileKey cambió de', window._lastGpsTileKey, 'a', key, '- recargando lugares');
-      window._lastGpsTileKey = key; ensurePlaces(lat,lng).then(() => maybeCheckin(lat,lng));
-    }
+    if (key !== window._lastGpsTileKey) { window._lastGpsTileKey = key; ensurePlaces(lat,lng).then(() => maybeCheckin(lat,lng)); }
     else maybeCheckin(lat,lng);
   }
   hideSplash();
@@ -2037,10 +2034,17 @@ const ppStartCooldownTimer = () => {
   }, 1000);
 };
 
+// Ventana de "acabamos de cerrar el popup" — evita que un click fantasma
+// (el navegador puede disparar un click sintético hasta ~300ms después de
+// un touchend, si el elemento tocado ya no está donde estaba) reabra el
+// popup justo después de reportar. En mapas con GPS inestable, el mapa se
+// re-centra seguido y un marker puede terminar exactamente donde estaba
+// el dedo cuando ese click fantasma llega, disparando su listener.
+let _popupSuppressUntil = 0;
+const suppressPopupReopen = (ms = 700) => { _popupSuppressUntil = Date.now() + ms; };
+
 const openPopup = place => {
-  // TEMPORAL: para diagnosticar el loop de reapertura del popup. Sacar
-  // después de encontrar la causa.
-  console.trace('[DEBUG] openPopup llamado para', place?.id, place?.name);
+  if (Date.now() < _popupSuppressUntil) return;
   currentPopupPlace = place;
   pp = { place, visible: false, cardVisible: false, selected: null, moodSelected: null, submitted: false, cooldownMs: getCooldown(place.id), imgLoaded: false, cooldownTimer: null };
 
@@ -2096,6 +2100,7 @@ const ppApplyCardTheme = () => {
 
 const ppClose = () => {
   if (!pp) return;
+  suppressPopupReopen();
   if (pp.cooldownTimer) clearInterval(pp.cooldownTimer);
   pp.cardVisible = false; pp.visible = false;
   const overlay = document.getElementById('pp-overlay');
@@ -2406,7 +2411,6 @@ const maybeCheckin = (lat,lng) => {
   if (!pool.length) return;
   const closest = pool.sort((a,b) => dist(lat,lng,a.lat,a.lng) - dist(lat,lng,b.lat,b.lng))[0];
   if (dist(lat,lng,closest.lat,closest.lng) > 20) return;
-  console.log('[DEBUG] maybeCheckin va a mostrar checkin para', closest.name, closest.id);
   const key = 'checkin_'+closest.id;
   const last = parseInt(sessionStorage.getItem(key)||'0');
   if (Date.now()-last < 5*60*1000) return;
