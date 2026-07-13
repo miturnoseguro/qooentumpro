@@ -88,6 +88,7 @@ const MOOD_OPTIONS = [
   { key: 'anxious', emoji: '😧', label: 'Angustiante' },
 ];
 const MOOD_PTS = 5;
+const MOOD_EMOJI = Object.fromEntries(MOOD_OPTIONS.map(m => [m.key, m.emoji]));
 const LEVEL_TITLES = ['Novato','Explorador','Cazador de Filas','Maestro del Mapa','Leyenda Urbana'];
 const XP_PER_LEVEL = 150;
 
@@ -842,7 +843,7 @@ const syncBackend = async (lat,lng) => {
   if (!BACKEND_READY) return;
   const res = await apiGet('sync_places', {lat,lng,radius:300,status_only:1});
   if (!res?.places) return;
-  res.places.forEach(bp => { const p = placeStore[bp.id]; if (p) { p.status = bp.status ?? p.status; p.reporters = bp.reporters ?? p.reporters; } });
+  res.places.forEach(bp => { const p = placeStore[bp.id]; if (p) { p.status = bp.status ?? p.status; p.reporters = bp.reporters ?? p.reporters; p.mood = bp.mood ?? p.mood; } });
   persistCache();
 };
 
@@ -1454,7 +1455,7 @@ const makeMarker = p => {
         <div class="fc-card-info"><div class="fc-card-name"${isBlack ? ' style="color:#F5F0E6;"' : ''}>${p.name}</div><div class="fc-card-type"${isBlack ? ' style="color:#9A9384;"' : ''}>${p.type}</div></div>
         <span class="fc-card-open ${p.open?'open':'closed'}">${p.open?'Abierto':'Cerrado'}</span>
       </div>
-      <div class="fc-card-status" style="background:${s.color}"><div class="s-dot-sm"></div><div class="s-label-sm">${s.label}</div></div>
+      <div class="fc-card-status" style="background:${s.color}"><div class="s-dot-sm"></div><div class="s-label-sm">${s.label}</div>${p.mood ? `<span class="fc-card-mood" title="Ánimo reportado">${MOOD_EMOJI[p.mood] || ''}</span>` : ''}</div>
     </div>
     <div class="fc-tail"></div><div class="fc-base"></div>
   `;
@@ -1479,7 +1480,15 @@ const refreshMarker = id => {
   const m = mlMarkers[id];
   const s = getStatus(p);
   const el = m.el.querySelector('.fc-card-status');
-  if (el) { el.style.background = s.color; const lbl = el.querySelector('.s-label-sm'); if (lbl) lbl.textContent = s.label; }
+  if (el) {
+    el.style.background = s.color;
+    const lbl = el.querySelector('.s-label-sm'); if (lbl) lbl.textContent = s.label;
+    let moodEl = el.querySelector('.fc-card-mood');
+    if (p.mood) {
+      if (!moodEl) { moodEl = document.createElement('span'); moodEl.className = 'fc-card-mood'; moodEl.title = 'Ánimo reportado'; el.appendChild(moodEl); }
+      moodEl.textContent = MOOD_EMOJI[p.mood] || '';
+    } else if (moodEl) { moodEl.remove(); }
+  }
   m._lastStatus = p.status; m._lastReporters = p.reporters;
 };
 const updateUserMarker = (lat,lng) => {
@@ -1839,6 +1848,7 @@ const ppHandleSubmit = async () => {
   place.status = pp.selected;
   place.reporters = (place.reporters || 0) + 1;
   place.report_ts = Date.now();
+  if (pp.moodSelected) place.mood = pp.moodSelected;
   placeStore[place.id] = place;
   refreshMarker(place.id);
   if (currentPopupPlace && currentPopupPlace.id === place.id) Object.assign(currentPopupPlace, place);
@@ -2049,7 +2059,7 @@ const cercaLoadPlaces = async () => {
       const bm = new Map(backend.places.map(p=>[p.id,p]));
       cercaAllPlaces = cercaAllPlaces.map(p => {
         const bp = bm.get(p.id);
-        return bp ? {...p, status: bp.status??p.status, reporters: bp.reporters??p.reporters} : p;
+        return bp ? {...p, status: bp.status??p.status, reporters: bp.reporters??p.reporters, mood: bp.mood??p.mood} : p;
       });
     }
   }
@@ -2420,7 +2430,7 @@ const syncOccupancy = () => {
       res.places.forEach(bp => {
         const p = placeStore[bp.id];
         if (p) { if (p.status !== bp.status || p.reporters !== (bp.reporters??p.reporters)) changed = true;
-          p.status = bp.status ?? p.status; p.reporters = bp.reporters ?? p.reporters; placeStore[p.id] = p; }
+          p.status = bp.status ?? p.status; p.reporters = bp.reporters ?? p.reporters; p.mood = bp.mood ?? p.mood; placeStore[p.id] = p; }
       });
       if (changed) {
         persistCache();
