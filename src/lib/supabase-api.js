@@ -82,8 +82,16 @@ export const apiPost = async (action, payload = {}) => {
         return null;
     }
   } catch (e) {
-    console.warn('apiPost', action, e);
-    return null;
+    // Antes: se atrapaba el error, se devolvía null y quien llamaba
+    // (submitVote en app.js) no tenía forma de distinguir "falló de
+    // verdad" de "no había cooldown/points en la respuesta" — terminaba
+    // cayendo en un fallback que sumaba puntos SOLO en el cliente y
+    // mostraba "reporte enviado" aunque el backend nunca hubiera
+    // guardado nada. Ahora se relanza para que el caller lo trate como
+    // el error que es (y, en el caso de 'vote', reintente/avise en vez
+    // de fingir éxito).
+    console.error('apiPost', action, e);
+    throw e;
   }
 };
 

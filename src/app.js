@@ -1989,7 +1989,13 @@ const ppHandleSubmit = async () => {
   ppRenderBody();
   vibrate(15);
 
-  const ok = await submitVote(place, pp.selected, pp.moodSelected);
+  let ok = false;
+  try {
+    ok = await submitVote(place, pp.selected, pp.moodSelected);
+  } catch (e) {
+    console.error('[ppHandleSubmit] submitVote falló', e);
+    showToast('⚠️ No se pudo enviar el reporte, probá de nuevo');
+  }
   if (ok) {
     // Recién acá, con el voto YA aceptado por el backend, se aplican
     // el cooldown local y el estado optimista del local en el mapa.
@@ -2143,9 +2149,19 @@ const submitVote = async (place, statusIdx, mood = null) => {
     }
     return true;
   }
-  addPoints(pts);
-  showToast(`🎉 +${pts} ganados`);
-  return true;
+  // Este fallback (sumar puntos SOLO del lado del cliente, sin backend) es
+  // intencional únicamente cuando no hay backend configurado (demo/offline:
+  // BACKEND_READY === false). Si hay backend pero la respuesta no trae
+  // "points", es una respuesta inesperada — ya no la tratamos como éxito
+  // silencioso, porque eso disfrazaba fallas reales del reporte.
+  if (!BACKEND_READY) {
+    addPoints(pts);
+    showToast(`🎉 +${pts} ganados`);
+    return true;
+  }
+  console.error('[submitVote] respuesta inesperada del backend, no se registró el reporte', res);
+  showToast('⚠️ No se pudo registrar el reporte, probá de nuevo');
+  return false;
 };
 
 // ============================================================
