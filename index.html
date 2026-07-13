@@ -240,11 +240,9 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
 }
 
 .fc-card-wrap.is-sponsor .fc-card {
- background-color: #FBE07A;
- background-size: 100% 100%;
- background-repeat: no-repeat;
- border-color: color-mix(in srgb, var(--sponsor-color, #70C9B0) 45%, #7e6109);
- box-shadow: 3px 3px 0 #7e6109;
+  background: linear-gradient(135deg, #FBE07A 0%, #F0C33D 50%, #D9A611 100%);
+  border-color: color-mix(in srgb, var(--sponsor-color, #70C9B0) 45%, var(--border));
+  box-shadow: 3px 3px 0 #7e6109;
 }
 .fc-card-head { display: flex; gap: 6px; align-items: center; }
 .fc-card-logo { position: relative; width: 24px; height: 24px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; overflow: visible; }
