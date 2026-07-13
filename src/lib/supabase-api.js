@@ -105,6 +105,20 @@ export const getSession = () => supabase.auth.getSession();
 export const onAuthChange = (cb) =>
   supabase.auth.onAuthStateChange((_event, session) => cb(session?.user ?? null));
 
+// ---- Canje de premios ----
+// A diferencia de apiGet/apiPost (que devuelven null y solo loguean en consola
+// si algo falla), estas devuelven {data, error} tal cual las manda supabase-js:
+// el error de negocio (sin puntos, sin stock, código inválido, etc.) lo arma
+// la función SQL con RAISE EXCEPTION y el mensaje SÍ tiene que llegar a la UI.
+export const redeemPrize = (prizeId) =>
+  supabase.rpc('redeem_prize', { p_prize_id: prizeId });
+
+export const fetchMyRedemptions = () =>
+  supabase.rpc('my_redemptions');
+
+export const verifyRedemptionCode = (code) =>
+  supabase.rpc('business_verify_redemption', { p_code: code });
+
 // ---- Realtime: reemplaza el polling de syncOccupancy cada 15s ----
 // onChange recibe { id, status, reporters } cada vez que un lugar cambia.
 let _channel = null;
