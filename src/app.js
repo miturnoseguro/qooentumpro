@@ -1179,7 +1179,10 @@ const onGps = pos => {
     cercaLoadPlaces();
   } else if (moved) {
     const key = tileKey(lat,lng);
-    if (key !== window._lastGpsTileKey) { window._lastGpsTileKey = key; ensurePlaces(lat,lng).then(() => maybeCheckin(lat,lng)); }
+    if (key !== window._lastGpsTileKey) {
+      console.log('[DEBUG] GPS tileKey cambió de', window._lastGpsTileKey, 'a', key, '- recargando lugares');
+      window._lastGpsTileKey = key; ensurePlaces(lat,lng).then(() => maybeCheckin(lat,lng));
+    }
     else maybeCheckin(lat,lng);
   }
   hideSplash();
@@ -2035,6 +2038,9 @@ const ppStartCooldownTimer = () => {
 };
 
 const openPopup = place => {
+  // TEMPORAL: para diagnosticar el loop de reapertura del popup. Sacar
+  // después de encontrar la causa.
+  console.trace('[DEBUG] openPopup llamado para', place?.id, place?.name);
   currentPopupPlace = place;
   pp = { place, visible: false, cardVisible: false, selected: null, moodSelected: null, submitted: false, cooldownMs: getCooldown(place.id), imgLoaded: false, cooldownTimer: null };
 
@@ -2400,6 +2406,7 @@ const maybeCheckin = (lat,lng) => {
   if (!pool.length) return;
   const closest = pool.sort((a,b) => dist(lat,lng,a.lat,a.lng) - dist(lat,lng,b.lat,b.lng))[0];
   if (dist(lat,lng,closest.lat,closest.lng) > 20) return;
+  console.log('[DEBUG] maybeCheckin va a mostrar checkin para', closest.name, closest.id);
   const key = 'checkin_'+closest.id;
   const last = parseInt(sessionStorage.getItem(key)||'0');
   if (Date.now()-last < 5*60*1000) return;
