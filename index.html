@@ -685,8 +685,15 @@ box-shadow: 3px 3px 0 #7e6109;
 .prize-body { flex: 1; min-width: 0; }
 .prize-name { font-size: 13px; font-weight: 700; color: var(--text); }
 .prize-cat { font-size: 10px; color: var(--text2); margin-top: 1px; font-weight: 500; }
-.prize-cta-ready { background: var(--green-lt); color: var(--green-dk); border-color: transparent; }
+.prize-cta-ready { background: var(--green-lt); color: var(--green-dk); border-color: transparent; cursor: pointer; }
+.prize-cta-ready:active { transform: scale(.94); }
 .prize-cta-off { background: var(--surface2); color: var(--text3); }
+.my-redemptions-list { padding: 0 14px 12px; flex-shrink: 0; }
+.my-redemptions-title { font-size: 11px; font-weight: 800; color: var(--text2); margin: 4px 0 6px; }
+.my-redemption-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius-lg); padding: 8px 12px; margin-bottom: 6px; }
+.my-redemption-name { font-size: 12px; font-weight: 700; color: var(--text); }
+.my-redemption-sub { font-size: 10px; color: var(--text2); }
+.my-redemption-code { font-family: monospace; font-weight: 800; font-size: 14px; color: var(--green-dk); letter-spacing: .04em; }
 .pbar-bg { height: 3px; background: var(--surface2); border-radius: 99px; margin-top: 6px; overflow: hidden; }
 .pbar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #00C48C, #00D4A0); transition: width .9s ease; }
 .prize-cta { font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 40px; white-space: nowrap; background: var(--surface2); color: var(--text3); border: 1px solid var(--border); }
@@ -740,6 +747,18 @@ box-shadow: 3px 3px 0 #7e6109;
 .levelup-lvl { font-size: 20px; font-weight: 900; color: #fff; letter-spacing: 1px; margin-top: 8px; }
 .levelup-title { font-size: 12px; font-weight: 700; color: #D8B4FE; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
 .levelup-close { margin-top: 18px; background: linear-gradient(135deg, #A855F7, #7C3AED); color: #fff; border: none; border-radius: 40px; padding: 8px 22px; font-size: 12px; font-weight: 800; cursor: pointer; font-family: inherit; }
+
+.redeem-card {
+  background: var(--surface); border: 2px solid var(--green);
+  border-radius: var(--radius-xl); padding: 28px 32px; text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35); max-width: 280px;
+  animation: popIn .4s cubic-bezier(.34,1.56,.64,1);
+}
+.redeem-title { font-size: 18px; font-weight: 900; color: var(--text); margin-top: 6px; }
+.redeem-sub { font-size: 13px; color: var(--text2); margin: 4px 0 14px; }
+.redeem-code-label { font-size: 10px; font-weight: 800; color: var(--text3); letter-spacing: .04em; }
+.redeem-code { font-size: 32px; font-weight: 900; letter-spacing: .06em; color: var(--green-dk); margin: 6px 0 6px; font-family: monospace; }
+.redeem-close { margin-top: 12px; background: var(--green); color: #fff; border: none; border-radius: 40px; padding: 8px 22px; font-size: 12px; font-weight: 800; cursor: pointer; font-family: inherit; }
 
 /* ===== CHECK-IN MODAL ===== */
 .checkin-overlay {
@@ -988,7 +1007,7 @@ box-shadow: 3px 3px 0 #7e6109;
       <div class="brand-mark"><img src="logo.png" alt="Qooentum" width="150" height="43"></div>
      
      
-<!--<a href="privacidad.html" style="font-size: 8px;color:#333; margin: 0 auto;">Política de Privacidad</a>-->
+<a href="privacidad.html" style="font-size: 8px;color:#333; margin: 0 auto;">Política de Privacidad</a>
 
     </a>
     <div class="topbar-auth">
@@ -1181,6 +1200,7 @@ box-shadow: 3px 3px 0 #7e6109;
       </div>
     </div>
     <div class="prizes-list" id="prizes-list"></div>
+    <div id="my-redemptions-list" class="my-redemptions-list"></div>
   </div>
 </div>
 
