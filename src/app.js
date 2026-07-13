@@ -2676,6 +2676,7 @@ const ONBOARDING_STEP_MS = 2000; // 3 pasos x 1s = 3s totales
 
 const showOnboardingWizard = () => new Promise(resolve => {
   const wizard = document.getElementById('onboarding-wizard');
+  const splash = document.getElementById('splash');
   const spinner = document.getElementById('splash-spinner');
   const splashText = document.getElementById('splash-text');
   if (!wizard) { resolve(); return; }
@@ -2684,6 +2685,15 @@ const showOnboardingWizard = () => new Promise(resolve => {
   let seen = false;
   try { seen = localStorage.getItem('qoo_onboarding_seen') === '1'; } catch (e) {}
   if (seen) { resolve(); return; }
+
+  // Mientras el wizard está en pantalla, el mapa se está cargando en
+  // paralelo (ver DOMContentLoaded más abajo). onboardingActive=true
+  // hace que hideSplash() no cierre todo apenas el mapa esté listo —
+  // esperamos a que el wizard también termine sus pasos. El splash
+  // pasa a modo translúcido (wiz-mode) para que ese mapa que se está
+  // cargando se vea de fondo, en vez de tapar todo con blanco sólido.
+  onboardingActive = true;
+  if (splash) splash.classList.add('wiz-mode');
 
   const card = wizard.querySelector('.wiz-card');
   const iconWrap = wizard.querySelector('.wiz-icon-wrap');
@@ -2728,6 +2738,14 @@ const showOnboardingWizard = () => new Promise(resolve => {
     wizard.classList.remove('show');
     spinner.classList.remove('wiz-hidden');
     splashText.classList.remove('wiz-hidden');
+    onboardingActive = false;
+    if (splash) splash.classList.remove('wiz-mode');
+    // El mapa puede haber terminado de cargar MIENTRAS el wizard seguía
+    // en pantalla (ver 'load' de mlMap → hideSplash(), que no hizo nada
+    // porque onboardingActive era true). Ahora que el wizard terminó,
+    // intentamos ocultar de nuevo: si el mapa ya estaba listo, se oculta
+    // ya mismo; si no, queda el spinner normal hasta que 'load' dispare.
+    hideSplash();
     resolve();
   };
 
@@ -2752,7 +2770,15 @@ document.addEventListener('DOMContentLoaded', () => {
   updateHUD();
   restoreSession();
   maybeStartSync();
-  showOnboardingWizard().then(() => requestGpsBeforeMap());
+  // Antes: showOnboardingWizard().then(() => requestGpsBeforeMap()) — el
+  // GPS y el mapa recién arrancaban cuando el wizard terminaba sus 3
+  // pasos (~3s reales de espera muerta). Ahora corren en paralelo: el
+  // wizard se muestra mientras, atrás, ya se está pidiendo la ubicación
+  // e inicializando el mapa (ver requestGpsBeforeMap → initMap). Por eso
+  // hace falta el modo translúcido del splash (wiz-mode, arriba): para
+  // que ese progreso en paralelo se note detrás del wizard.
+  showOnboardingWizard();
+  requestGpsBeforeMap();
 });
 
 document.addEventListener('click', e => {
