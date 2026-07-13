@@ -207,6 +207,11 @@ let pickModeActive = false;
 let _toastActionTimer = null;
 let _gpsTimeout = null;
 let mapInitialized = false;
+// true mientras el onboarding wizard está en pantalla (flotando sobre el
+// mapa). Mientras esté activo, las llamadas "normales" que ocultan el
+// splash se ignoran, para no cortarlo a mitad de paso apenas el mapa
+// termina de cargar en segundo plano.
+let onboardingActive = false;
 
 // ============================================================
 // FUNCIONES PRINCIPALES
@@ -961,6 +966,20 @@ const applySeed = (lat,lng) => {
   });
 };
 
+// Oculta el splash (spinner de carga). Si el onboarding wizard sigue
+// mostrándose, no lo tapamos — sigue flotando sobre el mapa hasta que
+// termine sus pasos por su cuenta (ver showOnboardingWizard/finish()).
+// force=true se usa SOLO en los 2 caminos de fallo real (timeout del
+// mapa / error de estilo): ahí preferimos mostrar algo aunque corte
+// el wizard, antes que dejar a alguien con la app trabada.
+const hideSplash = (force) => {
+  const splash = document.getElementById('splash');
+  if (!splash) return;
+  if (onboardingActive && !force) return;
+  if (force) onboardingActive = false;
+  splash.classList.add('hidden');
+};
+
 // ============================================================
 // MAPLIBRE - INICIO ROBUSTO
 // ============================================================
@@ -968,10 +987,9 @@ const initMap = (center) => {
   if (mapInitialized) return;
   mapInitialized = true;
 
-  const splash = document.getElementById('splash');
   // Forzar ocultación del splash tras 6 segundos (incluso si falla)
   const forceHide = setTimeout(() => {
-    splash.classList.add('hidden');
+    hideSplash(true);
   }, 6000);
 
   mlMap = new maplibregl.Map({
@@ -1003,7 +1021,7 @@ const initMap = (center) => {
     }
     followMode = true;
     updateGpsUI();
-    splash.classList.add('hidden');
+    hideSplash();
 
     if (userLat != null && userLng != null) {
       updateUserMarker(userLat, userLng);
@@ -1016,10 +1034,11 @@ const initMap = (center) => {
     startPlacesRealtime();
   });
 
-  // Si hay error al cargar el estilo/mapa, ocultar splash
+  // Si hay error al cargar el estilo/mapa, ocultar splash (caso de fallo:
+  // forzamos aunque el wizard siga activo, mejor eso que dejarlo trabado)
   mlMap.on('error', (e) => {
     console.warn('Map error:', e);
-    splash.classList.add('hidden');
+    hideSplash(true);
   });
 
   // Eventos de navegación
@@ -1138,7 +1157,7 @@ const onGps = pos => {
     if (key !== window._lastGpsTileKey) { window._lastGpsTileKey = key; ensurePlaces(lat,lng).then(() => maybeCheckin(lat,lng)); }
     else maybeCheckin(lat,lng);
   }
-  document.getElementById('splash').classList.add('hidden');
+  hideSplash();
 };
 
 // ============================================================
@@ -1251,7 +1270,7 @@ const requestGpsBeforeMap = () => {
         splashText.textContent = 'Usando ubicación predeterminada';
         setTimeout(() => {
           initMap([CONFIG.DEFAULT_CENTER.lng, CONFIG.DEFAULT_CENTER.lat]);
-          document.getElementById('splash').classList.add('hidden');
+          hideSplash();
         }, 400);
       }
     }, CONFIG.GPS_TIMEOUT_MS);
@@ -1272,14 +1291,14 @@ const requestGpsBeforeMap = () => {
         handleGpsErr(err);
         if (!mapInitialized) {
           initMap([CONFIG.DEFAULT_CENTER.lng, CONFIG.DEFAULT_CENTER.lat]);
-          document.getElementById('splash').classList.add('hidden');
+          hideSplash();
         }
       },
       { enableHighAccuracy: true, timeout: CONFIG.GPS_TIMEOUT_MS }
     );
   } else {
     initMap([CONFIG.DEFAULT_CENTER.lng, CONFIG.DEFAULT_CENTER.lat]);
-    document.getElementById('splash').classList.add('hidden');
+    hideSplash();
     startGpsWatch();
   }
 };
