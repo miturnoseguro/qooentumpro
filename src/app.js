@@ -42,7 +42,8 @@ const CONFIG = {
   MAP_DISPLAY_RADIUS_MAX_M: 3000,
   BBOX_PAD: 0.0012,
   PLACE_CACHE_TTL_MS: 24 * 60 * 60 * 1000,
-  VOTE_COOLDOWN_MS: 24 * 60 * 60 * 1000,
+  VOTE_COOLDOWN_MS: 8 * 60 * 60 * 1000, // cooldown por local (debe matchear _vote_cooldown() en 02_functions.sql)
+  DAILY_REPORT_LIMIT: 15, // tope total de reportes cada 24h (debe matchear _daily_vote_limit() en 02_functions.sql)
   GPS_TIMEOUT_MS: 5000,  // 5 segundos (valor razonable)
 
   // ── Mapa offline ──
@@ -812,10 +813,13 @@ const searchPlaces = async (lat, lng, radiusM) => {
 // este archivo — misma firma que antes, así todo lo de abajo sigue igual)
 
 // Cooldowns
+// Ventana móvil de 8h por local (ya no "por día calendario"), así que
+// acá NO se descarta todo al cruzar medianoche: cada timestamp guardado
+// vale por sí mismo hasta que vence, cruce o no un día.
 const saveCooldowns = () => {
   try {
     const now = Date.now();
-    const toSave = { _day: today() };
+    const toSave = {};
     Object.keys(placeCooldowns).forEach(pid => {
       const ts = placeCooldowns[pid] instanceof Date ? placeCooldowns[pid].getTime() : 0;
       if (ts > now) toSave[pid] = ts;
@@ -828,17 +832,17 @@ const loadCooldowns = () => {
     const raw = localStorage.getItem(COOLDOWN_KEY);
     if (!raw) return;
     const data = JSON.parse(raw);
-    if (data._day !== today()) { localStorage.removeItem(COOLDOWN_KEY); return; }
     Object.keys(data).forEach(pid => {
-      if (pid === '_day') return;
       const ts = data[pid];
       if (ts && ts > Date.now()) placeCooldowns[pid] = new Date(ts);
     });
   } catch(e) {}
 };
-const applyCooldown = pid => {
-  const midnight = new Date(); midnight.setDate(midnight.getDate()+1); midnight.setHours(0,0,0,0);
-  placeCooldowns[pid] = midnight;
+// secondsUntilNext: si vino del backend (respuesta de submit_vote), se usa
+// ese valor exacto; si no, se cae a CONFIG.VOTE_COOLDOWN_MS (8h) como estimación.
+const applyCooldown = (pid, secondsUntilNext = null) => {
+  const ms = secondsUntilNext != null ? secondsUntilNext * 1000 : CONFIG.VOTE_COOLDOWN_MS;
+  placeCooldowns[pid] = new Date(Date.now() + ms);
   saveCooldowns();
 };
 const getCooldown = pid => { const n = placeCooldowns[pid]; return n ? Math.max(0, n.getTime()-Date.now()) : 0; };
@@ -1983,24 +1987,33 @@ const ppHandleSubmit = async () => {
   pp.submitted = true;
   ppRenderBody();
   vibrate(15);
-  applyCooldown(place.id);
-  place.status = pp.selected;
-  place.reporters = (place.reporters || 0) + 1;
-  place.report_ts = Date.now();
-  if (pp.moodSelected) place.mood = pp.moodSelected;
-  placeStore[place.id] = place;
-  refreshMarker(place.id);
-  if (currentPopupPlace && currentPopupPlace.id === place.id) Object.assign(currentPopupPlace, place);
-  if (document.getElementById('panel-cerca').classList.contains('visible')) cercaApplyFilters();
 
   const ok = await submitVote(place, pp.selected, pp.moodSelected);
   if (ok) {
+    // Recién acá, con el voto YA aceptado por el backend, se aplican
+    // el cooldown local y el estado optimista del local en el mapa.
+    // Antes esto se hacía ANTES de llamar a submitVote(): si el voto
+    // fallaba (cooldown o el nuevo tope de 15/día) igual quedaba
+    // aplicado un cooldown de 8h sobre el local sin que el reporte se
+    // hubiera registrado de verdad.
+    applyCooldown(place.id);
+    place.status = pp.selected;
+    place.reporters = (place.reporters || 0) + 1;
+    place.report_ts = Date.now();
+    if (pp.moodSelected) place.mood = pp.moodSelected;
+    placeStore[place.id] = place;
+    refreshMarker(place.id);
+    if (currentPopupPlace && currentPopupPlace.id === place.id) Object.assign(currentPopupPlace, place);
+    if (document.getElementById('panel-cerca').classList.contains('visible')) cercaApplyFilters();
     flashPoints();
     pp.cooldownMs = getCooldown(place.id);
     ppStartCooldownTimer();
     ppRenderBody();
+  } else {
+    pp.submitted = false;
+    ppRenderBody();
   }
-  setTimeout(ppClose, 900);
+  if (ok) setTimeout(ppClose, 900);
 };
 
 const ppStartCooldownTimer = () => {
@@ -2097,9 +2110,14 @@ const submitVote = async (place, statusIdx, mood = null) => {
     mood: mood || null,
     email: currentUser?.email,
   });
+  if (res?.dailyLimitReached) {
+    const hrs = Math.max(1, Math.ceil((res.resetInSeconds || 0) / 3600));
+    showToast(`🚫 Llegaste al límite de ${res.dailyLimit || CONFIG.DAILY_REPORT_LIMIT} reportes por día. Volvé a intentar en ~${hrs}h`);
+    return false;
+  }
   if (res?.cooldown) {
-    applyCooldown(place.id);
-    showToast(`⏳ Ya reportaste ${place.name}`);
+    applyCooldown(place.id, res.secondsUntilNext);
+    showToast(`⏳ Ya reportaste ${place.name}, volvé a intentar en unas horas`);
     return false;
   }
   if (res && typeof res.points === 'number') {
