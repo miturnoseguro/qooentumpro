@@ -69,6 +69,19 @@
       <select id="placeSelect"></select>
     </div>
 
+    <div id="verifyCard" class="card">
+      <label>Verificar un canje</label>
+      <div class="sub" style="margin:0 0 8px;">
+        El cliente te muestra el código en su celular; lo escribís acá y confirmás que es real
+        y que no fue usado antes.
+      </div>
+      <div id="verifyResult" class="msg hidden"></div>
+      <div class="row">
+        <input id="verifyCode" placeholder="Ej: A3F-9K1" style="text-transform:uppercase;" />
+        <button id="btnVerify" class="btn-primary" style="flex:0 0 auto;">Verificar</button>
+      </div>
+    </div>
+
     <div id="myPrizesCard" class="card">
       <div class="card-head">
         <label>Tus premios</label>
@@ -87,7 +100,15 @@
       <div class="row">
         <div>
           <label>Puntos necesarios</label>
-          <input id="fPts" type="number" min="1" placeholder="Ej: 200" />
+          <select id="fPts">
+            <option value="">Elegí un valor</option>
+            <option value="1000">1000</option>
+            <option value="1500">1500</option>
+            <option value="2000">2000</option>
+            <option value="3000">3000</option>
+            <option value="4000">4000</option>
+            <option value="5000">5000</option>
+          </select>
         </div>
         <div>
           <label>Stock disponible</label>
@@ -227,6 +248,22 @@ $('placeSelect').addEventListener('change', async () => {
   await loadPrizes();
 });
 
+$('btnVerify').addEventListener('click', async () => {
+  const code = $('verifyCode').value.trim();
+  if (!code) return showMsg($('verifyResult'), 'Escribí el código', 'err');
+  const { data, error } = await supabase.rpc('business_verify_redemption', { p_code: code });
+  if (error) return showMsg($('verifyResult'), error.message, 'err');
+  if (data.alreadyRedeemed) {
+    showMsg($('verifyResult'),
+      `⚠️ Este código YA fue usado antes (${data.prizeName} · ${data.customer}). No lo aceptes de nuevo.`, 'err');
+  } else {
+    showMsg($('verifyResult'),
+      `✅ Válido y marcado como canjeado ahora: ${data.prizeName} · ${data.customer} · ${data.pointsSpent} pts`, 'ok');
+  }
+  $('verifyCode').value = '';
+});
+$('verifyCode').addEventListener('keydown', e => { if (e.key === 'Enter') $('btnVerify').click(); });
+
 // ---- Lista de premios ----
 async function loadPrizes() {
   const { data, error } = await supabase.rpc('business_list_prizes', { p_place_id: currentPlaceId });
@@ -292,7 +329,7 @@ $('btnSave').addEventListener('click', async () => {
   const pts = parseInt($('fPts').value, 10);
   const stock = parseInt($('fStock').value, 10);
   if (!name) return showMsg($('editMsg'), 'Falta el nombre del premio', 'err');
-  if (!pts || pts <= 0) return showMsg($('editMsg'), 'Los puntos tienen que ser mayores a 0', 'err');
+  if (![1000,1500,2000,3000,4000,5000].includes(pts)) return showMsg($('editMsg'), 'Elegí un valor de puntos de la lista', 'err');
   if (isNaN(stock) || stock < 0) return showMsg($('editMsg'), 'El stock no puede ser negativo', 'err');
 
   const { error } = await supabase.rpc('business_upsert_prize', {
