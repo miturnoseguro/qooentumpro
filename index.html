@@ -680,9 +680,13 @@ box-shadow: 3px 3px 0 #7e6109;
 .prize-row { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; display: flex; align-items: center; gap: 12px; transition: all .22s cubic-bezier(.34,1.56,.64,1); }
 .prize-row:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
 .prize-emoji { font-size: 28px; width: 40px; text-align: center; flex-shrink: 0; }
+.prize-photo { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; flex-shrink: 0; background: var(--surface2); }
+.prize-row-off { opacity: .55; }
 .prize-body { flex: 1; min-width: 0; }
 .prize-name { font-size: 13px; font-weight: 700; color: var(--text); }
 .prize-cat { font-size: 10px; color: var(--text2); margin-top: 1px; font-weight: 500; }
+.prize-cta-ready { background: var(--green-lt); color: var(--green-dk); border-color: transparent; }
+.prize-cta-off { background: var(--surface2); color: var(--text3); }
 .pbar-bg { height: 3px; background: var(--surface2); border-radius: 99px; margin-top: 6px; overflow: hidden; }
 .pbar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #00C48C, #00D4A0); transition: width .9s ease; }
 .prize-cta { font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 40px; white-space: nowrap; background: var(--surface2); color: var(--text3); border: 1px solid var(--border); }

@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Qooentum · Mis premios</title>
+<style>
+  :root{
+    --green:#00C48C; --bg:#F0F4F8; --card:#fff;
+    --text:#0F172A; --sub:#64748B; --border:#E2E8F0; --danger:#EF4444; --neutral:#94A3B8;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);}
+  .wrap{max-width:640px;margin:0 auto;padding:20px 16px 80px;}
+  h1{font-size:20px;font-weight:800;margin:8px 0 2px;}
+  .sub{color:var(--sub);font-size:13px;margin-bottom:20px;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;}
+  button{cursor:pointer;border:none;border-radius:10px;font-weight:700;font-size:14px;padding:10px 16px;}
+  .btn-primary{background:var(--green);color:#fff;}
+  .btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+  .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text);}
+  .btn-danger{background:transparent;border:1px solid var(--danger);color:var(--danger);}
+  .btn-sm{padding:6px 10px;font-size:12px;border-radius:8px;}
+  input,select,textarea{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:9px;font-size:14px;font-family:inherit;margin-top:4px;}
+  label{font-size:12px;font-weight:700;color:var(--sub);display:block;margin-top:10px;}
+  .row{display:flex;gap:8px;}
+  .row > *{flex:1;}
+  .hidden{display:none !important;}
+  .msg{font-size:13px;padding:10px 12px;border-radius:9px;margin-bottom:12px;}
+  .msg-err{background:#FEF2F2;color:var(--danger);}
+  .msg-ok{background:#ECFDF5;color:#047857;}
+  .footer-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;}
+  .config-note{font-size:12px;color:var(--sub);background:#FFFBEB;border:1px solid #FDE68A;padding:10px 12px;border-radius:10px;}
+  .card-head{display:flex;align-items:center;justify-content:space-between;}
+  .card-head label{margin-top:0;}
+  .place-name{font-weight:800;font-size:15px;}
+  .prize-item{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--border);}
+  .prize-item:last-child{border-bottom:none;}
+  .prize-thumb{width:44px;height:44px;border-radius:10px;object-fit:cover;background:var(--bg);flex-shrink:0;}
+  .prize-thumb-fallback{width:44px;height:44px;border-radius:10px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+  .prize-item-name{font-weight:700;font-size:14px;}
+  .prize-item-sub{font-size:12px;color:var(--sub);}
+  .prize-item-actions{display:flex;gap:6px;flex-shrink:0;}
+  .paused{opacity:.5;}
+  .badge-paused{background:var(--neutral);color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;white-space:nowrap;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎁 Qooentum · Mis premios</h1>
+  <div class="sub">Cargá los premios que tu comercio ofrece a cambio de puntos. Se muestran en la app apenas los guardás.</div>
+
+  <div id="configWarning" class="config-note hidden">
+    ⚠️ Falta configurar <code>SUPABASE_URL</code> / <code>SUPABASE_ANON_KEY</code> arriba en el <code>&lt;script&gt;</code> de este archivo.
+  </div>
+
+  <div id="loginCard" class="card">
+    <div id="loginMsg" class="msg hidden"></div>
+    <button id="btnLogin" class="btn-primary">Iniciar sesión con Google</button>
+    <div id="sessionInfo" class="sub hidden" style="margin-top:10px;"></div>
+    <button id="btnLogout" class="btn-ghost hidden" style="margin-top:8px;">Cerrar sesión</button>
+  </div>
+
+  <div id="app" class="hidden">
+
+    <div id="placePickerCard" class="card hidden">
+      <label>Tu comercio</label>
+      <select id="placeSelect"></select>
+    </div>
+
+    <div id="myPrizesCard" class="card">
+      <div class="card-head">
+        <label>Tus premios</label>
+        <button id="btnNewPrize" class="btn-primary btn-sm">+ Nuevo premio</button>
+      </div>
+      <div id="prizesList" style="margin-top:6px;"></div>
+    </div>
+
+    <div id="editCard" class="card hidden">
+      <div id="editMsg" class="msg hidden"></div>
+      <div class="place-name" id="editTitle">Nuevo premio</div>
+
+      <label>Nombre del premio</label>
+      <input id="fName" placeholder="Ej: Café gratis, 20% off, medialunas x6..." />
+
+      <div class="row">
+        <div>
+          <label>Puntos necesarios</label>
+          <input id="fPts" type="number" min="1" placeholder="Ej: 200" />
+        </div>
+        <div>
+          <label>Stock disponible</label>
+          <input id="fStock" type="number" min="0" placeholder="Ej: 10" />
+        </div>
+      </div>
+
+      <label>Foto del producto (URL de imagen)</label>
+      <input id="fPhotoUrl" placeholder="https://..." />
+
+      <div class="row">
+        <div>
+          <label>Emoji (si no ponés foto)</label>
+          <input id="fEmoji" placeholder="🎁" maxlength="4" />
+        </div>
+        <div>
+          <label>Categoría</label>
+          <input id="fCat" placeholder="Gastronomía, Compras, etc." />
+        </div>
+      </div>
+
+      <div class="footer-actions">
+        <button id="btnSave" class="btn-primary">Guardar</button>
+        <button id="btnDelete" class="btn-danger hidden">Eliminar</button>
+        <button id="btnCancel" class="btn-ghost">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+// ============================================================
+// CONFIGURÁ ESTO (mismos valores que admin.html / tu .env)
+// ============================================================
+const SUPABASE_URL = 'https://uskhlfncsfpzcdnwltff.supabase.co/';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVza2hsZm5jc2ZwemNkbndsdGZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NjgyOTMsImV4cCI6MjA5ODU0NDI5M30.I4R8je-XO4xHxMcjuoKCHEeGSop-cl8yF22tCzwx6I0';
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const configOk = !SUPABASE_URL.startsWith('TU_') && !SUPABASE_ANON_KEY.startsWith('TU_');
+if (!configOk) document.getElementById('configWarning').classList.remove('hidden');
+
+const supabase = configOk ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    flowType: 'pkce',
+    storageKey: 'qooentum-business-auth',
+  },
+}) : null;
+
+const $ = id => document.getElementById(id);
+const show = el => el.classList.remove('hidden');
+const hide = el => el.classList.add('hidden');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+let myPlaces = [];
+let currentPlaceId = null;
+let prizes = [];
+let editing = null; // { id: null | string, place_id }
+
+function showMsg(el, text, kind) {
+  el.textContent = text;
+  el.className = 'msg ' + (kind === 'err' ? 'msg-err' : 'msg-ok');
+  show(el);
+}
+
+// ---- Auth ----
+$('btnLogin').addEventListener('click', async () => {
+  if (!supabase) return;
+  await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: location.origin + location.pathname },
+  });
+});
+$('btnLogout').addEventListener('click', async () => {
+  await supabase.auth.signOut();
+  location.reload();
+});
+
+async function checkBusinessAndInit(session) {
+  if (!session) {
+    hide($('app'));
+    hide($('sessionInfo'));
+    hide($('btnLogout'));
+    show($('btnLogin'));
+    return;
+  }
+
+  $('sessionInfo').textContent = 'Sesión: ' + session.user.email;
+  show($('sessionInfo'));
+  show($('btnLogout'));
+  hide($('btnLogin'));
+  hide($('loginMsg'));
+
+  // asegura que exista el profile (mismo flujo que la app y admin.html)
+  await supabase.rpc('get_profile', { p_email: session.user.email });
+
+  const { data, error } = await supabase.rpc('business_my_places');
+  if (error) {
+    hide($('app'));
+    showMsg($('loginMsg'), 'No pudimos revisar tus comercios: ' + error.message, 'err');
+    return;
+  }
+  myPlaces = data || [];
+
+  if (!myPlaces.length) {
+    hide($('app'));
+    showMsg($('loginMsg'),
+      'Tu cuenta (' + session.user.email + ') todavía no está vinculada a ningún comercio. ' +
+      'Pedile a Qooentum que te vincule desde el panel de administración usando ese mismo email.',
+      'err');
+    return;
+  }
+
+  show($('app'));
+  populatePlaceSelect();
+  currentPlaceId = myPlaces[0].id;
+  await loadPrizes();
+}
+
+if (supabase) {
+  supabase.auth.onAuthStateChange((_event, session) => {
+    checkBusinessAndInit(session);
+    if (session && location.hash) history.replaceState(null, '', location.pathname + location.search);
+  });
+}
+
+function populatePlaceSelect() {
+  if (myPlaces.length <= 1) { hide($('placePickerCard')); return; }
+  show($('placePickerCard'));
+  $('placeSelect').innerHTML = myPlaces.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+}
+$('placeSelect').addEventListener('change', async () => {
+  currentPlaceId = $('placeSelect').value;
+  await loadPrizes();
+});
+
+// ---- Lista de premios ----
+async function loadPrizes() {
+  const { data, error } = await supabase.rpc('business_list_prizes', { p_place_id: currentPlaceId });
+  if (error) { $('prizesList').innerHTML = '<div class="msg msg-err">' + esc(error.message) + '</div>'; return; }
+  prizes = data || [];
+  renderPrizes();
+}
+
+function renderPrizes() {
+  const box = $('prizesList');
+  if (!prizes.length) {
+    box.innerHTML = '<div class="sub" style="padding:8px 4px;">Todavía no cargaste ningún premio. Tocá "+ Nuevo premio" para agregar el primero.</div>';
+    return;
+  }
+  box.innerHTML = '';
+  prizes.forEach(pr => {
+    const row = document.createElement('div');
+    row.className = 'prize-item' + (pr.active ? '' : ' paused');
+    const thumb = pr.photo_url
+      ? `<img class="prize-thumb" src="${esc(pr.photo_url)}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'prize-thumb-fallback',textContent:'${esc(pr.emoji || '🎁')}'}))" />`
+      : `<div class="prize-thumb-fallback">${esc(pr.emoji || '🎁')}</div>`;
+    row.innerHTML = `
+      ${thumb}
+      <div style="flex:1;min-width:0;">
+        <div class="prize-item-name">${esc(pr.name)} ${pr.active ? '' : '<span class="badge-paused">Pausado</span>'}</div>
+        <div class="prize-item-sub">${Number(pr.pts).toLocaleString('es-AR')} pts · stock: ${pr.stock}</div>
+      </div>
+      <div class="prize-item-actions">
+        <button class="btn-ghost btn-sm pz-edit">Editar</button>
+        <button class="btn-ghost btn-sm pz-toggle">${pr.active ? 'Pausar' : 'Reactivar'}</button>
+      </div>
+    `;
+    row.querySelector('.pz-edit').addEventListener('click', () => openEditor(pr));
+    row.querySelector('.pz-toggle').addEventListener('click', async () => {
+      const { error } = await supabase.rpc('business_set_prize_active', { p_id: pr.id, p_active: !pr.active });
+      if (error) { alert(error.message); return; }
+      loadPrizes();
+    });
+    box.appendChild(row);
+  });
+}
+
+$('btnNewPrize').addEventListener('click', () => openEditor(null));
+
+function openEditor(pr) {
+  editing = pr;
+  hide($('editMsg'));
+  $('editTitle').textContent = pr ? 'Editar premio' : 'Nuevo premio';
+  $('fName').value = pr?.name || '';
+  $('fPts').value = pr?.pts ?? '';
+  $('fStock').value = pr?.stock ?? '';
+  $('fPhotoUrl').value = pr?.photo_url || '';
+  $('fEmoji').value = pr?.emoji || '';
+  $('fCat').value = pr?.cat || '';
+  $('btnDelete').classList.toggle('hidden', !pr);
+  show($('editCard'));
+  $('editCard').scrollIntoView({ behavior: 'smooth' });
+}
+$('btnCancel').addEventListener('click', () => hide($('editCard')));
+
+$('btnSave').addEventListener('click', async () => {
+  const name = $('fName').value.trim();
+  const pts = parseInt($('fPts').value, 10);
+  const stock = parseInt($('fStock').value, 10);
+  if (!name) return showMsg($('editMsg'), 'Falta el nombre del premio', 'err');
+  if (!pts || pts <= 0) return showMsg($('editMsg'), 'Los puntos tienen que ser mayores a 0', 'err');
+  if (isNaN(stock) || stock < 0) return showMsg($('editMsg'), 'El stock no puede ser negativo', 'err');
+
+  const { error } = await supabase.rpc('business_upsert_prize', {
+    p_id: editing?.id ?? null,
+    p_place_id: currentPlaceId,
+    p_name: name,
+    p_emoji: $('fEmoji').value.trim() || null,
+    p_photo_url: $('fPhotoUrl').value.trim() || null,
+    p_pts: pts,
+    p_stock: stock,
+    p_cat: $('fCat').value.trim() || 'Comercio',
+  });
+  if (error) return showMsg($('editMsg'), error.message, 'err');
+  showMsg($('editMsg'), 'Guardado ✅', 'ok');
+  await loadPrizes();
+  setTimeout(() => hide($('editCard')), 700);
+});
+
+$('btnDelete').addEventListener('click', async () => {
+  if (!editing) return;
+  if (!confirm('¿Eliminar "' + editing.name + '"? No se puede deshacer.')) return;
+  const { error } = await supabase.rpc('business_delete_prize', { p_id: editing.id });
+  if (error) return showMsg($('editMsg'), error.message, 'err');
+  hide($('editCard'));
+  await loadPrizes();
+});
+</script>
+</body>
+</html>

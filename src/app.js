@@ -184,7 +184,7 @@ let cercaAllPlaces = [], cercaFiltered = [], cercaRadius=1000, cercaCat='all', c
 let cercaLoaded = false;
 let cercaReqId = 0; // usado para descartar respuestas de cargas viejas (evita el parpadeo al cambiar de radio rápido)
 let cercaCache = {}; // cache de resultados por radio, para no repetir el flash de datos demo al volver a un radio ya visitado
-let rankingData = [], prizesData = SEED_PRIZES.map(p=>({...p}));
+let rankingData = [], prizesData = SEED_PRIZES.map(p=>({...p})), prizesLoaded = false;
 let _markerBatchToken = 0, _buildMarkersTimer = null;
 // Sponsor "Black" actualmente pinneado arriba a la izquierda (o null si no hay ninguno cerca)
 let pinnedSponsorPlace = null;
@@ -2561,14 +2561,22 @@ const buildPrizes = () => {
   document.getElementById('my-pts-prizes').textContent = userPts + ' pts disponibles';
   document.getElementById('prizes-list').innerHTML = prizesData.map((pr, idx) => {
     const pct = Math.min(100, Math.round((userPts / pr.pts) * 100));
-    return `<div class="prize-row" style="animation-delay:${idx*.04}s">
-      <div class="prize-emoji">${pr.emoji}</div>
+    const outOfStock = pr.stock != null && pr.stock <= 0;
+    const canAfford = userPts >= pr.pts;
+    const cta = outOfStock ? 'Sin stock' : (canAfford ? 'Canjear' : 'Muy pronto');
+    const ctaCls = outOfStock ? ' prize-cta-off' : (canAfford ? ' prize-cta-ready' : '');
+    const media = pr.photo_url
+      ? `<img class="prize-photo" src="${pr.photo_url}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'prize-emoji',textContent:'${pr.emoji || '🎁'}'}))" />`
+      : `<div class="prize-emoji">${pr.emoji || '🎁'}</div>`;
+    const stockNote = pr.stock != null ? ` · ${outOfStock ? 'sin stock' : 'quedan ' + pr.stock}` : '';
+    return `<div class="prize-row${outOfStock ? ' prize-row-off' : ''}" style="animation-delay:${idx*.04}s">
+      ${media}
       <div class="prize-body">
         <div class="prize-name">${pr.name}</div>
-        <div class="prize-cat">${pr.pts.toLocaleString('es-AR')} pts · ${pr.cat} · ${pr.partner}</div>
+        <div class="prize-cat">${pr.pts.toLocaleString('es-AR')} pts · ${pr.cat} · ${pr.partner}${stockNote}</div>
         <div class="pbar-bg"><div class="pbar-fill" style="width:0%" data-w="${pct}"></div></div>
       </div>
-      <div class="prize-cta">Muy pronto</div>
+      <div class="prize-cta${ctaCls}">${cta}</div>
     </div>`;
   }).join('');
   requestAnimationFrame(() => {
@@ -2623,7 +2631,16 @@ const switchTab = tab => {
   });
   if (tab === 'cerca') { if (!cercaLoaded) cercaLoadPlaces(); else cercaApplyFilters(); }
   if (tab === 'ranking') { buildRanking(); if (BACKEND_READY) apiGet('ranking', currentUser?{email:currentUser.email}:{}).then(r => { if (r?.ranking) { rankingData = r.ranking; buildRanking(); } }); }
-  if (tab === 'prizes') { buildPrizes(); if (!prizesData.length && BACKEND_READY) apiGet('prizes').then(r => { if (r?.prizes) { prizesData = r.prizes; buildPrizes(); } }); }
+  if (tab === 'prizes') {
+    buildPrizes();
+    if (!prizesLoaded && BACKEND_READY) {
+      apiGet('prizes').then(r => {
+        prizesLoaded = true;
+        if (r?.prizes && r.prizes.length) prizesData = r.prizes; // si no hay premios reales cargados, se mantiene el seed de ejemplo
+        buildPrizes();
+      });
+    }
+  }
 };
 
 // ============================================================
