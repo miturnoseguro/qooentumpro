@@ -74,6 +74,25 @@
       <div id="sponsorsList" style="margin-top:6px;"></div>
     </div>
 
+    <div id="ownerLinkCard" class="card">
+      <div class="card-head">
+        <label>Vincular comercio a un dueño (para que cargue sus premios)</label>
+      </div>
+      <div id="ownerLinkMsg" class="msg hidden"></div>
+      <div class="sub" style="margin:0 0 8px;">
+        El dueño tiene que haber iniciado sesión al menos una vez (en la app o en
+        <code>business.html</code>) antes de poder vincularlo por email.
+      </div>
+      <label>Comercio (place id, ej: osm-node-123)</label>
+      <input id="ownerPlaceId" placeholder="osm-node-123" />
+      <label>Email del dueño</label>
+      <input id="ownerEmail" placeholder="dueno@comercio.com" />
+      <div class="footer-actions">
+        <button id="btnLinkOwner" class="btn-primary btn-sm">Vincular</button>
+        <button id="btnUnlinkOwner" class="btn-danger btn-sm">Desvincular</button>
+      </div>
+    </div>
+
     <div class="card">
       <label>Buscar comercio (por nombre o id)</label>
       <div class="row">
@@ -455,6 +474,23 @@ $('btnSave').addEventListener('click', async () => {
   if (error) { showMsg($('editMsg'), error.message, 'err'); return; }
   showMsg($('editMsg'), 'Guardado ✅', 'ok');
   loadSponsorsList();
+});
+
+// ---- Vincular comercio a un dueño (business.html) ----
+$('btnLinkOwner').addEventListener('click', async () => {
+  const placeId = $('ownerPlaceId').value.trim();
+  const email = $('ownerEmail').value.trim();
+  if (!placeId || !email) return showMsg($('ownerLinkMsg'), 'Completá place id y email', 'err');
+  const { error } = await supabase.rpc('admin_link_place_owner', { p_place_id: placeId, p_owner_email: email });
+  if (error) return showMsg($('ownerLinkMsg'), error.message, 'err');
+  showMsg($('ownerLinkMsg'), 'Vinculado ✅ · ya puede entrar a business.html con ese email', 'ok');
+});
+$('btnUnlinkOwner').addEventListener('click', async () => {
+  const placeId = $('ownerPlaceId').value.trim();
+  if (!placeId) return showMsg($('ownerLinkMsg'), 'Completá el place id', 'err');
+  const { error } = await supabase.rpc('admin_unlink_place_owner', { p_place_id: placeId });
+  if (error) return showMsg($('ownerLinkMsg'), error.message, 'err');
+  showMsg($('ownerLinkMsg'), 'Desvinculado ✅', 'ok');
 });
 
 $('btnRemove').addEventListener('click', async () => {
