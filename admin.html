@@ -74,6 +74,17 @@
       <div id="sponsorsList" style="margin-top:6px;"></div>
     </div>
 
+<<<<<<< HEAD
+    <div id="linkedPlacesCard" class="card">
+      <div class="card-head">
+        <label>Comercios vinculados</label>
+        <button id="btnRefreshLinked" class="btn-ghost btn-sm">↻ Actualizar</button>
+      </div>
+      <div id="linkedPlacesList" style="margin-top:6px;"></div>
+    </div>
+
+=======
+>>>>>>> bb86ad988f6f8e8f3cd43644c2d1837920082d07
     <div id="ownerLinkCard" class="card">
       <div class="card-head">
         <label>Vincular comercio a un dueño (para que cargue sus premios)</label>
@@ -256,6 +267,7 @@ async function checkAdminAndInit(session) {
   }
   show($('app'));
   renderSponsorsList(data || []);
+  loadLinkedPlaces();
 }
 
 if (supabase) {
@@ -476,6 +488,55 @@ $('btnSave').addEventListener('click', async () => {
   loadSponsorsList();
 });
 
+<<<<<<< HEAD
+// ---- Comercios vinculados a un dueño ----
+async function loadLinkedPlaces() {
+  const box = $('linkedPlacesList');
+  box.innerHTML = '<div class="sub" style="padding:8px 4px;">Cargando…</div>';
+  const { data, error } = await supabase.rpc('admin_list_linked_places');
+  if (error) { box.innerHTML = '<div class="msg msg-err">' + esc(error.message) + '</div>'; return; }
+  renderLinkedPlaces(data || []);
+}
+$('btnRefreshLinked').addEventListener('click', loadLinkedPlaces);
+
+function renderLinkedPlaces(rows) {
+  const box = $('linkedPlacesList');
+  if (!rows.length) {
+    box.innerHTML = '<div class="sub" style="padding:8px 4px;">Todavía no vinculaste ningún comercio. Usá el formulario de abajo para vincular el primero.</div>';
+    return;
+  }
+  box.innerHTML = '';
+  rows.forEach(r => {
+    const row = document.createElement('div');
+    row.className = 'result';
+    row.style.cursor = 'default';
+    row.innerHTML = `
+      <div>
+        <div class="result-name">${esc(r.name)}</div>
+        <div class="result-sub">${esc(r.owner_email)} · ${esc(r.place_id)} · ${r.prizes_count} premio${r.prizes_count === 1 ? '' : 's'}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button class="btn-ghost btn-sm lp-edit">Editar</button>
+        <button class="btn-danger btn-sm lp-unlink">Desvincular</button>
+      </div>
+    `;
+    row.querySelector('.lp-edit').addEventListener('click', () => {
+      $('ownerPlaceId').value = r.place_id;
+      $('ownerEmail').value = r.owner_email;
+      $('ownerLinkCard').scrollIntoView({ behavior: 'smooth' });
+    });
+    row.querySelector('.lp-unlink').addEventListener('click', async () => {
+      if (!confirm('¿Desvincular "' + r.name + '" de ' + r.owner_email + '? Sus premios quedan cargados pero ya no va a poder editarlos.')) return;
+      const { error } = await supabase.rpc('admin_unlink_place_owner', { p_place_id: r.place_id });
+      if (error) { alert(error.message); return; }
+      loadLinkedPlaces();
+    });
+    box.appendChild(row);
+  });
+}
+
+=======
+>>>>>>> bb86ad988f6f8e8f3cd43644c2d1837920082d07
 // ---- Vincular comercio a un dueño (business.html) ----
 $('btnLinkOwner').addEventListener('click', async () => {
   const placeId = $('ownerPlaceId').value.trim();
@@ -484,6 +545,10 @@ $('btnLinkOwner').addEventListener('click', async () => {
   const { error } = await supabase.rpc('admin_link_place_owner', { p_place_id: placeId, p_owner_email: email });
   if (error) return showMsg($('ownerLinkMsg'), error.message, 'err');
   showMsg($('ownerLinkMsg'), 'Vinculado ✅ · ya puede entrar a business.html con ese email', 'ok');
+<<<<<<< HEAD
+  loadLinkedPlaces();
+=======
+>>>>>>> bb86ad988f6f8e8f3cd43644c2d1837920082d07
 });
 $('btnUnlinkOwner').addEventListener('click', async () => {
   const placeId = $('ownerPlaceId').value.trim();
@@ -491,6 +556,10 @@ $('btnUnlinkOwner').addEventListener('click', async () => {
   const { error } = await supabase.rpc('admin_unlink_place_owner', { p_place_id: placeId });
   if (error) return showMsg($('ownerLinkMsg'), error.message, 'err');
   showMsg($('ownerLinkMsg'), 'Desvinculado ✅', 'ok');
+<<<<<<< HEAD
+  loadLinkedPlaces();
+=======
+>>>>>>> bb86ad988f6f8e8f3cd43644c2d1837920082d07
 });
 
 $('btnRemove').addEventListener('click', async () => {
