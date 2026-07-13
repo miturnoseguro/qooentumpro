@@ -80,6 +80,14 @@ const SPONSOR_BLACK = '#0A0A0C';
 const SPONSOR_BLACK_ACCENT = '#7f681e';
 const BRAND_GREEN = '#00C48C';
 const VOTE_PTS = [10,10,15,20];
+// Opciones de "ánimo del lugar" — reporte opcional aparte del nivel de gente.
+// key: valor que se guarda/envía al backend. emoji/label: solo UI.
+const MOOD_OPTIONS = [
+  { key: 'happy', emoji: '😊', label: 'Buen clima' },
+  { key: 'angry', emoji: '😠', label: 'Tenso' },
+  { key: 'anxious', emoji: '😧', label: 'Angustiante' },
+];
+const MOOD_PTS = 5;
 const LEVEL_TITLES = ['Novato','Explorador','Cazador de Filas','Maestro del Mapa','Leyenda Urbana'];
 const XP_PER_LEVEL = 150;
 
@@ -1734,12 +1742,26 @@ const ppRenderBody = () => {
       }).join('')}
     </div>` : '';
 
+  const moodHtml = (!submitted && isLoggedIn && nearby && !onCooldown) ? `
+    <div style="margin-bottom:10px;">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:800;color:${T ? T.text3 : '#64748B'};text-transform:uppercase;letter-spacing:.3px;">¿Cómo se siente el ambiente? <span style="text-transform:none;font-weight:600;opacity:.75;">(opcional)</span></p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;">
+        ${MOOD_OPTIONS.map(({key,emoji,label}) => {
+          const isSel = pp.moodSelected === key;
+          return `<button class="pp-mood-btn" data-mood="${key}" style="border:2px solid ${isSel ? BRAND_GREEN : stickerColor};border-radius:14px;background:${isSel ? BRAND_GREEN : (T ? T.btnBg : '#fff')};padding:8px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:inherit;transform:${isSel ? 'translate(-1px,-1px)' : 'none'};box-shadow:${isSel ? `3px 3px 0 ${BRAND_GREEN}` : `2px 2px 0 ${stickerColor}`};">
+            <span style="font-size:20px;line-height:1;">${emoji}</span>
+            <span style="font-size:9.5px;font-weight:700;color:${isSel ? '#fff' : (T ? T.btnText : '#000')};">${escHtml(label)}</span>
+          </button>`;
+        }).join('')}
+      </div>
+    </div>` : '';
+
   const submittedHtml = submitted ? `
     <div style="display:flex;align-items:center;gap:10px;background:#E8FBF5;border:1px solid #A8EDD8;border-radius:12px;padding:11px 12px;margin-bottom:10px;">
       <span style="font-size:20px;">✅</span>
       <div>
         <p style="margin:0;font-size:13px;font-weight:800;color:#007A59;">¡Reporte enviado!</p>
-        <p style="margin:2px 0 0;font-size:11px;color:#047857;">+${VOTE_PTS[selected] || 10} puntos sumados</p>
+        <p style="margin:2px 0 0;font-size:11px;color:#047857;">+${(VOTE_PTS[selected] || 10) + (pp.moodSelected ? MOOD_PTS : 0)} puntos sumados${pp.moodSelected ? ` · ${MOOD_OPTIONS.find(m=>m.key===pp.moodSelected)?.emoji || ''} ánimo reportado` : ''}</p>
       </div>
     </div>` : '';
 
@@ -1762,7 +1784,7 @@ const ppRenderBody = () => {
         <span style="font-size:16px;flex-shrink:0;">🎁</span>
         <span style="font-size:12px;font-weight:800;color:${sponsorColor};">${escHtml(promo)}</span>
       </div>` : ''}
-      ${notLogHtml}${tooFarHtml}${noGpsHtml}${nearOkHtml}${cooldownHtml}${votesHtml}${submittedHtml}${submitBtnHtml}
+      ${notLogHtml}${tooFarHtml}${noGpsHtml}${nearOkHtml}${cooldownHtml}${votesHtml}${moodHtml}${submittedHtml}${submitBtnHtml}
       <p style="margin:8px 0 0;font-size:10px;color:${T ? T.text3 : '#94A3B8'};display:flex;align-items:center;gap:4px;font-weight:500;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px;flex-shrink:0;">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -1780,6 +1802,9 @@ const ppRenderBody = () => {
   body.querySelectorAll('.pp-vote-btn').forEach(btn => {
     btn.addEventListener('click', () => ppHandleVote(parseInt(btn.dataset.idx, 10)));
   });
+  body.querySelectorAll('.pp-mood-btn').forEach(btn => {
+    btn.addEventListener('click', () => ppHandleMood(btn.dataset.mood));
+  });
   const submitBtn = document.getElementById('pp-submit-btn');
   if (submitBtn) submitBtn.addEventListener('click', ppHandleSubmit);
 };
@@ -1790,6 +1815,15 @@ const ppHandleVote = idx => {
   if (!isLoggedIn) { showToastAction('🔑 Iniciá sesión para reportar'); return; }
   vibrate(8);
   pp.selected = idx;
+  ppRenderBody();
+};
+
+const ppHandleMood = key => {
+  const { onCooldown, nearby } = ppComputed();
+  if (pp.submitted || onCooldown || !nearby) return;
+  if (!isLoggedIn) { showToastAction('🔑 Iniciá sesión para reportar'); return; }
+  vibrate(8);
+  pp.moodSelected = (pp.moodSelected === key) ? null : key; // toggle: es opcional
   ppRenderBody();
 };
 
@@ -1810,7 +1844,7 @@ const ppHandleSubmit = async () => {
   if (currentPopupPlace && currentPopupPlace.id === place.id) Object.assign(currentPopupPlace, place);
   if (document.getElementById('panel-cerca').classList.contains('visible')) cercaApplyFilters();
 
-  const ok = await submitVote(place, pp.selected);
+  const ok = await submitVote(place, pp.selected, pp.moodSelected);
   if (ok) {
     flashPoints();
     pp.cooldownMs = getCooldown(place.id);
@@ -1833,7 +1867,7 @@ const ppStartCooldownTimer = () => {
 
 const openPopup = place => {
   currentPopupPlace = place;
-  pp = { place, visible: false, cardVisible: false, selected: null, submitted: false, cooldownMs: getCooldown(place.id), imgLoaded: false, cooldownTimer: null };
+  pp = { place, visible: false, cardVisible: false, selected: null, moodSelected: null, submitted: false, cooldownMs: getCooldown(place.id), imgLoaded: false, cooldownTimer: null };
 
   const container = document.getElementById('react-popup-root');
   container.classList.add('active');
@@ -1906,11 +1940,12 @@ const closePopup = () => {
 };
 
 
-const submitVote = async (place, statusIdx) => {
+const submitVote = async (place, statusIdx, mood = null) => {
   const pts = VOTE_PTS[statusIdx];
   const res = await apiPost('vote', {
     place: { id:place.id, name:place.name, type:place.type, addr:place.addr, lat:place.lat, lng:place.lng, logo:place.logo, rating:place.rating, reviewsN:place.reviewsN, verified:!!place.verified, open:place.open !== false },
     status: statusIdx,
+    mood: mood || null,
     email: currentUser?.email,
   });
   if (res?.cooldown) {

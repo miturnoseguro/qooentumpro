@@ -65,6 +65,7 @@ export const apiPost = async (action, payload = {}) => {
       case 'vote': {
         const { data, error } = await supabase.rpc('submit_vote', {
           p_email: payload.email, p_place: payload.place, p_status: payload.status,
+          p_mood: payload.mood ?? null,
         });
         if (error) throw error;
         return data; // { points, cooldown }
