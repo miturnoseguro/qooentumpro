@@ -30,6 +30,16 @@ const CONFIG = {
   // perder cobertura (rebuildNearby usa este mismo valor para el radio de
   // "cerca").
   TILE_DEG: 0.006,
+  // Antes el mapa (rebuildNearby) y el fetch a Supabase (_loadPlaces) usaban
+  // ambos un radio FIJO (~800m y 600m resp.) sin importar cuánto zoom-out
+  // hiciera el usuario, así que alejar el mapa nunca traía más pines: seguían
+  // cortados a ~800m del centro. Estos dos valores definen el rango que
+  // reemplaza ese fijo: el radio real se calcula en base al viewport
+  // (getViewportRadiusM), pero siempre con piso MIN_M (no pedir/mostrar de
+  // más si estás muy zoomeado) y techo MAX_M (no reventar la query/el mapa
+  // de pines si te alejás mucho).
+  MAP_DISPLAY_RADIUS_MIN_M: 600,
+  MAP_DISPLAY_RADIUS_MAX_M: 3000,
   BBOX_PAD: 0.0012,
   PLACE_CACHE_TTL_MS: 24 * 60 * 60 * 1000,
   VOTE_COOLDOWN_MS: 24 * 60 * 60 * 1000,
@@ -113,6 +123,31 @@ const dist = (lat1,lng1,lat2,lng2) => {
   return 2*R*Math.asin(Math.sqrt(a));
 };
 const validCoord = (lat,lng) => typeof lat==='number' && typeof lng==='number' && !isNaN(lat) && !isNaN(lng) && lat>=-90 && lat<=90 && lng>=-180 && lng<=180;
+
+// Distancia (m) del centro del mapa a la esquina NE del viewport actual =
+// "medio radio visible" en pantalla. Devuelve null si el mapa todavía no
+// está listo (primer load, o llamadas que llegan antes de mlMap.on('load')).
+// Se usa para que tanto lo que se DIBUJA (rebuildNearby) como lo que se PIDE
+// al backend (_loadPlaces) escalen con el zoom real, en vez de un radio fijo
+// que ignoraba cuánto habías alejado el mapa.
+const getViewportRadiusM = () => {
+  if (!mlMap || !mlReady) return null;
+  try {
+    const b = mlMap.getBounds();
+    const c = mlMap.getCenter();
+    const ne = b.getNorthEast();
+    const r = dist(c.lat, c.lng, ne.lat, ne.lng);
+    return (typeof r === 'number' && !isNaN(r)) ? r : null;
+  } catch (e) { return null; }
+};
+// Radio "adaptativo": viewport real +30% de margen (para que los pines no
+// aparezcan/desaparezcan justo al borde), acotado entre MIN_M y MAX_M.
+// Cuando el mapa no está listo, cae al mínimo (mismo comportamiento de antes).
+const getAdaptiveRadiusM = () => {
+  const v = getViewportRadiusM();
+  if (v == null) return CONFIG.MAP_DISPLAY_RADIUS_MIN_M;
+  return Math.min(CONFIG.MAP_DISPLAY_RADIUS_MAX_M, Math.max(CONFIG.MAP_DISPLAY_RADIUS_MIN_M, Math.round(v * 1.3)));
+};
 const getLevel = pts => ({ level: Math.floor(pts/XP_PER_LEVEL)+1, xp: pts%XP_PER_LEVEL, pct: Math.round(((pts%XP_PER_LEVEL)/XP_PER_LEVEL)*100) });
 const today = () => new Date().toISOString().slice(0,10);
 const fmtDist = m => m<1000 ? m+'m' : (m/1000).toFixed(1)+'km';
@@ -181,6 +216,14 @@ function vibrate(ms=10) { if (navigator.vibrate) navigator.vibrate(ms); }
 // Cache
 const tileKey = (lat,lng) => `${Math.floor(lat/CONFIG.TILE_DEG)}:${Math.floor(lng/CONFIG.TILE_DEG)}`;
 const isCached = k => tileCache[k] && (Date.now()-tileCache[k].ts) < CONFIG.PLACE_CACHE_TTL_MS;
+// Antes, un tile "cacheado" se consideraba servible para siempre (hasta el
+// TTL) sin importar CON QUÉ RADIO se había pedido. Eso significaba: llegás a
+// una zona zoomeado (tile fetcheado a 600m), alejás el zoom (ahora hace
+// falta 2000m) — pero como el tile ya estaba "cacheado", _loadPlaces cortaba
+// camino y nunca pedía el anillo extra de 600m→2000m. Esta variante exige
+// además que el radio con el que se fetcheó cubra (con 5% de margen) el
+// radio que se necesita ahora.
+const isCachedEnough = (k, neededRadiusM) => isCached(k) && (tileCache[k].radius || 0) >= neededRadiusM * 0.95;
 const persistCache = () => { try { localStorage.setItem(CACHE_KEY, JSON.stringify({ tiles:tileCache, places:placeStore, savedAt:Date.now() })); } catch(e) {} };
 // persistCache() hace JSON.stringify de TODO placeStore+tileCache (puede ser
 // miles de lugares con el prefetch de 3km) y escribe a localStorage de forma
@@ -600,7 +643,7 @@ const overpassSearch = async (lat, lng, radiusM, signal) => {
   way["name"]["leisure"](around:${r},${lat},${lng});
   way["name"]["healthcare"](around:${r},${lat},${lng});
 );
-out center 200;`;
+out center 400;`;
   const data = await overpassRate(q, signal);
   if (!data) { const cached2 = OVERPASS_CACHE.get(key); return cached2 ? cached2.places : []; }
   const places = (data.elements||[])
@@ -630,7 +673,7 @@ out center 200;`;
     })
     .filter(p => p && p.dist <= radiusM)
     .sort((a,b) => a.dist - b.dist)
-    .slice(0, window.innerWidth < 768 ? 150 : 250);
+    .slice(0, window.innerWidth < 768 ? 250 : 400);
   OVERPASS_CACHE.set(key, { places, ts: Date.now() });
   return places;
 };
@@ -693,7 +736,7 @@ const geoapifySearch = async (lat, lng, radiusM) => {
   const cached = GEOAPIFY_CACHE.get(key);
   if (cached && Date.now()-cached.ts < GEOAPIFY_CACHE_TTL) return cached.places;
   const r = Math.min(radiusM, 10000);
-  const url = `https://api.geoapify.com/v2/places?categories=${GEOAPIFY_CATEGORIES}&filter=circle:${lng},${lat},${r}&bias=proximity:${lng},${lat}&limit=100&apiKey=${CONFIG.GEOAPIFY_API_KEY}`;
+  const url = `https://api.geoapify.com/v2/places?categories=${GEOAPIFY_CATEGORIES}&filter=circle:${lng},${lat},${r}&bias=proximity:${lng},${lat}&limit=200&apiKey=${CONFIG.GEOAPIFY_API_KEY}`;
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) throw new Error(String(res.status));
@@ -787,7 +830,7 @@ const ensurePlaces = async (lat,lng) => {
   _loadPending = {lat,lng};
   if (_loadTimer) clearTimeout(_loadTimer);
   const key = tileKey(lat,lng);
-  const delay = isCached(key) ? 0 : 400;
+  const delay = isCachedEnough(key, getAdaptiveRadiusM()) ? 0 : 400;
   return new Promise(resolve => {
     _loadTimer = setTimeout(() => {
       _loadTimer = null;
@@ -798,7 +841,8 @@ const ensurePlaces = async (lat,lng) => {
 };
 const _loadPlaces = async (lat,lng) => {
   const key = tileKey(lat,lng);
-  if (isCached(key)) {
+  const neededRadius = getAdaptiveRadiusM();
+  if (isCachedEnough(key, neededRadius)) {
     rebuildNearby(lat,lng);
     buildMapMarkers(nearbyPlaces);
     syncBackend(lat,lng);
@@ -810,16 +854,22 @@ const _loadPlaces = async (lat,lng) => {
     // pocos resultados —zona todavía sin importar via import-places.js—
     // vamos también a Overpass/Geoapify en vivo, que es la parte lenta.
     const MIN_BACKEND_RESULTS = 5;
-    const backend = BACKEND_READY ? await apiGet('sync_places', {lat,lng,radius:600}) : null;
+    // Antes: 600 fijo, más chico incluso que el radio que rebuildNearby
+    // terminaba mostrando (~800m) — es decir, ya se estaba pidiendo menos de
+    // lo que el mapa quería dibujar. Ahora usa el mismo radio adaptativo
+    // (viewport real, con piso/techo) que rebuildNearby, así lo que se trae
+    // siempre alcanza para lo que se va a mostrar.
+    const fetchRadius = neededRadius;
+    const backend = BACKEND_READY ? await apiGet('sync_places', {lat,lng,radius:fetchRadius}) : null;
     const backendPlaces = backend?.places || [];
-    const osms = backendPlaces.length < MIN_BACKEND_RESULTS ? await searchPlaces(lat,lng,600) : [];
+    const osms = backendPlaces.length < MIN_BACKEND_RESULTS ? await searchPlaces(lat,lng,fetchRadius) : [];
     const bm = new Map(backendPlaces.map(p=>[p.id,p]));
     const merged = osms.map(p => { const bp = bm.get(p.id); return bp ? {...p,...bp} : p; });
     const onlyBackend = backendPlaces.filter(p => !osms.find(o=>o.id===p.id));
     const all = [...merged, ...onlyBackend];
     const ids = [];
     all.forEach(p => { placeStore[p.id] = p; ids.push(p.id); });
-    tileCache[key] = { ts: Date.now(), placeIds: ids };
+    tileCache[key] = { ts: Date.now(), placeIds: ids, radius: fetchRadius };
     schedulePersist();
     rebuildNearby(lat,lng);
     applySeed(lat,lng);
@@ -843,7 +893,13 @@ const rebuildNearby = (lat,lng) => {
   const center = (mlMap && mlReady) ? mlMap.getCenter() : null;
   const rLat = center ? center.lat : lat;
   const rLng = center ? center.lng : lng;
-  const maxDist = CONFIG.TILE_DEG * 111320 * 1.2;
+  // Antes: radio FIJO (~800m, calculado desde TILE_DEG) sin importar el zoom
+  // del mapa. Resultado: alejar el mapa (zoom out) nunca mostraba más pines,
+  // porque todo lo que estuviera a más de ~800m del centro se filtraba acá
+  // igual, aunque el viewport visible fuera mucho más grande. Ahora el radio
+  // se calcula del viewport real (ver getAdaptiveRadiusM), así que zoom out =
+  // más área = más lugares dibujados (hasta el techo de MAP_DISPLAY_RADIUS_MAX_M).
+  const maxDist = getAdaptiveRadiusM();
   // Pre-filtro barato en grados (una resta + valor absoluto) antes de pagar
   // el seno/coseno de dist() para cada lugar. Con placeStore creciendo
   // (prefetch de 3km + tiles acumulados) esto puede ser miles de lugares en
@@ -976,7 +1032,13 @@ const initMap = (center) => {
       updateGpsUI();
     }
   });
-  mlMap.on('zoomend', () => { if (nearbyPlaces.length) buildMapMarkers(nearbyPlaces); });
+  mlMap.on('zoomend', () => {
+    if (!mlMap) return;
+    const c = mlMap.getCenter();
+    rebuildNearby(c.lat, c.lng);
+    buildMapMarkers(nearbyPlaces);
+    ensurePlaces(c.lat, c.lng); // isCachedEnough decide si hace falta pedir más al backend
+  });
   mlMap.on('moveend', () => {
     if (!mlMap) return;
     const c = mlMap.getCenter();
