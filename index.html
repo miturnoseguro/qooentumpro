@@ -615,13 +615,9 @@ box-shadow: 3px 3px 0 #7e6109;
 .nc-report-btn:active { transform: translate(2px,2px); box-shadow: none; }
 .nc-card.selected { border-color: var(--green); background: var(--green-lt); box-shadow: 4px 4px 0 var(--green); }
 .nc-card.is-sponsor {
-  margin-top: 10px; border-width: 2.5px;
-  background-color: #FBE07A;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 140' preserveAspectRatio='none'%3E%3Crect width='400' height='140' fill='%23FBE07A'/%3E%3Cpath d='M0,140 C80,70 160,90 220,35 C280,-15 340,15 400,-10 L400,140 Z' fill='%23D9A611'/%3E%3C/svg%3E");
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
-  border-color: color-mix(in srgb, var(--sponsor-color, #70C9B0) 70%, var(--text));
-  box-shadow: 4px 4px 0 color-mix(in srgb, var(--sponsor-color, #70C9B0) 70%, var(--text));
+  margin-top: 10px; background: linear-gradient(163deg, #FBE07A 0%, #FBE07A 50%, #D9A611 50%, #fff2a2 100%);
+border-color:color-mix(in srgb, #7e6109 45%, #7e6109);
+box-shadow: 3px 3px 0 #7e6109;
 }
 .nc-card.is-sponsor:hover { border-color: var(--sponsor-color, var(--green)); }
 .nc-card.is-sponsor .nc-logo { position: relative; overflow: visible; border-color: color-mix(in srgb, var(--sponsor-color, #70C9B0) 70%, var(--text)); }
