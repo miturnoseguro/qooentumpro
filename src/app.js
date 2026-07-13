@@ -1646,7 +1646,7 @@ const ppRenderHeader = () => {
   const header = document.getElementById('pp-header');
   if (!header) return;
   header.innerHTML = `
-    <div style="position:relative;height:200px;flex-shrink:0;background:#E2E8F0;">
+    <div style="position:relative;height:160px;flex-shrink:0;background:#E2E8F0;">
       <img id="pp-img" src="${escAttr(photo)}" alt="${escAttr(place.name)}" loading="lazy"
         style="width:100%;height:100%;object-fit:cover;display:block;opacity:${pp.imgLoaded?1:0};transition:opacity 0.4s ease;">
       ${badgeText ? `<div style="position:absolute;top:12px;right:52px;background:${isBlack ? 'linear-gradient(135deg,#0A0A0C,#1c1c20)' : sponsorColor};border:1.5px solid ${isBlack ? SPONSOR_BLACK_ACCENT : 'rgba(255,255,255,.7)'};border-radius:40px;padding:3px 9px;display:flex;align-items:center;gap:4px;box-shadow:2px 2px 0 ${isBlack ? SPONSOR_BLACK_ACCENT : 'rgba(15,23,42,.35)'};">
