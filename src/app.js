@@ -1791,7 +1791,7 @@ const ppRenderBody = () => {
         </svg>
         <span style="font-size:13px;font-weight:800;color:${T ? T.text : '#1e9a77'};letter-spacing:-0.2px;">${place.reporters} reportes en las últimas 2h</span>
       </div>
-      ${promo ? `<div style="display:flex;align-items:center;gap:8px;background:${T ? `color-mix(in srgb, ${sponsorColor} 14%, transparent)` : `${sponsorColor}14`};border:2px dashed ${sponsorColor};border-radius:12px;padding:8px 10px;margin-bottom:10px;">
+      ${promo ? `<div style="display:flex;align-items:center;gap:8px;background:${T ? `color-mix(in srgb, ${sponsorColor} 14%, transparent)` : `${sponsorColor}14`};border:2px dashed ${sponsorColor};border-radius:12px;padding:2px 10px;margin-bottom:10px;">
         <span style="font-size:16px;flex-shrink:0;">🎁</span>
         <span style="font-size:12px;font-weight:800;color:${sponsorColor};">${escHtml(promo)}</span>
       </div>` : ''}
