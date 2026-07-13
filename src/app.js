@@ -633,7 +633,14 @@ const overpassSearch = async (lat, lng, radiusM, signal) => {
   // amenity/shop y por eso faltaban organismos públicos (office=government),
   // talleres/oficios (craft=*), turismo, etc. osmToMeta() decide después
   // cómo mostrar cada uno (emoji/tipo/categoría).
-  const q = `[out:json][timeout:15];
+  // timeout subido a 20 (igual al AbortSignal del fetch) y "out center" sin
+  // techo artificial: antes cortaba en 400 elementos ANTES de ordenar por
+  // distancia, así que en zonas densas podía perderse justo los más
+  // cercanos. El recorte real por cantidad se hace después, ya ordenado
+  // por dist() (ver .slice más abajo). way["craft"]/way["tourism"] se
+  // agregan para que talleres/oficios y atractivos turísticos mapeados
+  // como polígono (no solo como punto) también entren.
+  const q = `[out:json][timeout:20];
 (
   node["name"]["shop"](around:${r},${lat},${lng});
   node["name"]["amenity"](around:${r},${lat},${lng});
@@ -647,8 +654,10 @@ const overpassSearch = async (lat, lng, radiusM, signal) => {
   way["name"]["office"](around:${r},${lat},${lng});
   way["name"]["leisure"](around:${r},${lat},${lng});
   way["name"]["healthcare"](around:${r},${lat},${lng});
+  way["name"]["craft"](around:${r},${lat},${lng});
+  way["name"]["tourism"](around:${r},${lat},${lng});
 );
-out center 400;`;
+out center;`;
   const data = await overpassRate(q, signal);
   if (!data) { const cached2 = OVERPASS_CACHE.get(key); return cached2 ? cached2.places : []; }
   const places = (data.elements||[])
@@ -678,7 +687,12 @@ out center 400;`;
     })
     .filter(p => p && p.dist <= radiusM)
     .sort((a,b) => a.dist - b.dist)
-    .slice(0, window.innerWidth < 768 ? 250 : 400);
+    // Techo subido (antes 250/400): ahora que "out center" ya no corta antes
+    // de ordenar por distancia, este slice es el único límite real y
+    // conviene que sea más generoso para no perder densidad en zonas con
+    // mucho comercio. El clustering del mapa (buildMapMarkers) se encarga
+    // de que no se vuelva ilegible visualmente aunque haya más pines.
+    .slice(0, window.innerWidth < 768 ? 500 : 800);
   OVERPASS_CACHE.set(key, { places, ts: Date.now() });
   return places;
 };
@@ -858,7 +872,13 @@ const _loadPlaces = async (lat,lng) => {
     // Supabase primero (una sola query PostGIS, rápida). Solo si devuelve
     // pocos resultados —zona todavía sin importar via import-places.js—
     // vamos también a Overpass/Geoapify en vivo, que es la parte lenta.
-    const MIN_BACKEND_RESULTS = 5;
+    // Antes: 5. Con un piso tan bajo, apenas Supabase tenía 5 lugares
+    // importados en la zona (aunque hubiera 100+ reales sin importar
+    // todavía) la app daba por buena esa data y nunca completaba con
+    // Overpass/Geoapify en vivo. Subido para que la búsqueda en vivo entre
+    // en juego mucho más seguido y el detalle sea real, no solo lo que ya
+    // pasó por import-places.js.
+    const MIN_BACKEND_RESULTS = 25;
     // Antes: 600 fijo, más chico incluso que el radio que rebuildNearby
     // terminaba mostrando (~800m) — es decir, ya se estaba pidiendo menos de
     // lo que el mapa quería dibujar. Ahora usa el mismo radio adaptativo
@@ -2136,7 +2156,10 @@ const cercaLoadPlaces = async () => {
   //    y solo si ahí tampoco hay suficiente densidad, recién ahí se va
   //    a buscar en vivo a Overpass/Geoapify — que es la parte que tarda
   //    los 4-10s, porque son requests a APIs externas desde el navegador.
-  const MIN_LOCAL_RESULTS = 5;
+  // Mismo criterio que MIN_BACKEND_RESULTS en _loadPlaces: antes 5 era muy
+  // poco para decidir "ya tenemos suficiente" y se salteaba Overpass/Geoapify
+  // en vivo con demasiada facilidad.
+  const MIN_LOCAL_RESULTS = 25;
   let data = Object.values(placeStore)
     .filter(p => validCoord(p.lat,p.lng) && dist(lat,lng,p.lat,p.lng) <= radiusAtStart)
     .map(p => ({ ...p, dist: Math.round(dist(lat,lng,p.lat,p.lng)), cat: p.cat || guessCat(p.name,p.type) }));
@@ -2156,7 +2179,7 @@ const cercaLoadPlaces = async () => {
     }
   }
 
-  if (data.length < 3) {
+  if (data.length < MIN_LOCAL_RESULTS) {
     const fetched = await searchPlaces(lat, lng, radiusAtStart);
     data = fetched.map(p => ({ ...p, dist: Math.round(dist(lat,lng,p.lat,p.lng)), cat: p.cat || guessCat(p.name,p.type) }));
   }

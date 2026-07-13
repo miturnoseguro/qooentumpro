@@ -133,6 +133,8 @@ const OVERPASS_TAG_QUERY = `
   way["name"]["office"](__BBOX__);
   way["name"]["leisure"](__BBOX__);
   way["name"]["healthcare"](__BBOX__);
+  way["name"]["craft"](__BBOX__);
+  way["name"]["tourism"](__BBOX__);
 `;
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
