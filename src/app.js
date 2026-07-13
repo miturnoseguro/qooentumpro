@@ -5,6 +5,7 @@ import {
   apiGet, apiPost, BACKEND_READY,
   signInWithGoogle, signOut, getSession, onAuthChange,
   startRealtimeSync, stopRealtimeSync,
+  redeemPrize, fetchMyRedemptions,
 } from './lib/supabase-api.js';
 
 // ============================================================
@@ -2563,13 +2564,16 @@ const buildPrizes = () => {
     const pct = Math.min(100, Math.round((userPts / pr.pts) * 100));
     const outOfStock = pr.stock != null && pr.stock <= 0;
     const canAfford = userPts >= pr.pts;
-    const cta = outOfStock ? 'Sin stock' : (canAfford ? 'Canjear' : 'Muy pronto');
-    const ctaCls = outOfStock ? ' prize-cta-off' : (canAfford ? ' prize-cta-ready' : '');
+    // pr.place_id == null → premio de ejemplo (seed), todavía no ligado a
+    // ningún comercio real: se muestra pero no se puede canjear.
+    const redeemable = pr.place_id != null;
+    const cta = outOfStock ? 'Sin stock' : (redeemable && canAfford ? 'Canjear' : 'Muy pronto');
+    const ctaCls = outOfStock ? ' prize-cta-off' : (redeemable && canAfford ? ' prize-cta-ready' : '');
     const media = pr.photo_url
       ? `<img class="prize-photo" src="${pr.photo_url}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'prize-emoji',textContent:'${pr.emoji || '🎁'}'}))" />`
       : `<div class="prize-emoji">${pr.emoji || '🎁'}</div>`;
     const stockNote = pr.stock != null ? ` · ${outOfStock ? 'sin stock' : 'quedan ' + pr.stock}` : '';
-    return `<div class="prize-row${outOfStock ? ' prize-row-off' : ''}" style="animation-delay:${idx*.04}s">
+    return `<div class="prize-row${outOfStock ? ' prize-row-off' : ''}" data-id="${pr.id}" style="animation-delay:${idx*.04}s">
       ${media}
       <div class="prize-body">
         <div class="prize-name">${pr.name}</div>
@@ -2583,6 +2587,68 @@ const buildPrizes = () => {
     document.querySelectorAll('.pbar-fill').forEach(el => { el.style.width = el.dataset.w + '%'; });
   });
 };
+
+// ---- Canje de premios ----
+const redeemModal = data => {
+  const modal = document.createElement('div');
+  modal.className = 'levelup-modal';
+  modal.innerHTML = `<div class="redeem-card">
+    <div class="levelup-burst">🎁</div>
+    <div class="redeem-title">¡Canjeado!</div>
+    <div class="redeem-sub">${data.prizeName} · ${data.placeName}</div>
+    <div class="redeem-code-label">MOSTRÁ ESTE CÓDIGO EN EL LOCAL</div>
+    <div class="redeem-code">${data.code}</div>
+    <button class="redeem-close" onclick="this.closest('.levelup-modal').remove()">Listo</button>
+  </div>`;
+  document.body.appendChild(modal);
+};
+
+const loadMyRedemptions = () => {
+  const box = document.getElementById('my-redemptions-list');
+  if (!box || !BACKEND_READY || !isLoggedIn) return;
+  fetchMyRedemptions().then(({ data, error }) => {
+    if (error || !data) return;
+    const pending = data.filter(r => r.status !== 'redeemed');
+    if (!pending.length) { box.innerHTML = ''; return; }
+    box.innerHTML = `<div class="my-redemptions-title">Tus códigos pendientes</div>` + pending.map(r => `
+      <div class="my-redemption-row">
+        <div><div class="my-redemption-name">${r.prize_name}</div><div class="my-redemption-sub">${r.place_name}</div></div>
+        <div class="my-redemption-code">${r.code}</div>
+      </div>
+    `).join('');
+  }).catch(() => {});
+};
+
+const _prizesListEl = document.getElementById('prizes-list');
+if (_prizesListEl) _prizesListEl.addEventListener('click', async e => {
+  const cta = e.target.closest('.prize-cta-ready');
+  if (!cta) return;
+  if (!isLoggedIn) { showToastAction('🔑 Iniciá sesión para canjear'); return; }
+  const row = e.target.closest('.prize-row');
+  const prizeId = row?.dataset.id;
+  const pr = prizesData.find(p => p.id === prizeId);
+  if (!pr || cta.dataset.busy) return;
+
+  cta.dataset.busy = '1';
+  const prevText = cta.textContent;
+  cta.textContent = '...';
+  const { data, error } = await redeemPrize(prizeId);
+  delete cta.dataset.busy;
+
+  if (error) {
+    showToast('⚠️ ' + error.message);
+    cta.textContent = prevText;
+    return;
+  }
+
+  userPts = data.remainingPoints ?? (userPts - pr.pts);
+  pr.stock = pr.stock != null ? Math.max(0, pr.stock - 1) : pr.stock;
+  updateHUD();
+  flashPoints();
+  buildPrizes();
+  loadMyRedemptions();
+  redeemModal(data);
+});
 
 // ============================================================
 // SYNC
@@ -2633,6 +2699,7 @@ const switchTab = tab => {
   if (tab === 'ranking') { buildRanking(); if (BACKEND_READY) apiGet('ranking', currentUser?{email:currentUser.email}:{}).then(r => { if (r?.ranking) { rankingData = r.ranking; buildRanking(); } }); }
   if (tab === 'prizes') {
     buildPrizes();
+    loadMyRedemptions();
     if (!prizesLoaded && BACKEND_READY) {
       apiGet('prizes').then(r => {
         prizesLoaded = true;
