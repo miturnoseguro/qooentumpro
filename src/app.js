@@ -1782,14 +1782,14 @@ const ppRenderBody = () => {
 
   body.innerHTML = `
     <div style="padding:${T ? T.pad : '14px 14px 16px'};">
-      <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;background:${T ? T.statBg : '#F1F5F9'};border:2px solid ${stickerColor};box-shadow:2px 2px 0 ${stickerColor};border-radius:12px;padding:10px 12px;">
+      <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:12px;background:${T ? T.statBg : '#F1F5F9'};border:2px solid ${stickerColor};box-shadow:2px 2px 0 ${stickerColor};border-radius:12px;padding:5px 6px;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;flex-shrink:0;color:${T ? T.text : '#1e9a77'};">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
           <circle cx="9" cy="7" r="4"></circle>
           <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
           <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
         </svg>
-        <span style="font-size:15px;font-weight:800;color:${T ? T.text : '#1e9a77'};letter-spacing:-0.2px;">${place.reporters} reportes en las últimas 2h</span>
+        <span style="font-size:13px;font-weight:800;color:${T ? T.text : '#1e9a77'};letter-spacing:-0.2px;">${place.reporters} reportes en las últimas 2h</span>
       </div>
       ${promo ? `<div style="display:flex;align-items:center;gap:8px;background:${T ? `color-mix(in srgb, ${sponsorColor} 14%, transparent)` : `${sponsorColor}14`};border:2px dashed ${sponsorColor};border-radius:12px;padding:8px 10px;margin-bottom:10px;">
         <span style="font-size:16px;flex-shrink:0;">🎁</span>
