@@ -182,6 +182,17 @@ function vibrate(ms=10) { if (navigator.vibrate) navigator.vibrate(ms); }
 const tileKey = (lat,lng) => `${Math.floor(lat/CONFIG.TILE_DEG)}:${Math.floor(lng/CONFIG.TILE_DEG)}`;
 const isCached = k => tileCache[k] && (Date.now()-tileCache[k].ts) < CONFIG.PLACE_CACHE_TTL_MS;
 const persistCache = () => { try { localStorage.setItem(CACHE_KEY, JSON.stringify({ tiles:tileCache, places:placeStore, savedAt:Date.now() })); } catch(e) {} };
+// persistCache() hace JSON.stringify de TODO placeStore+tileCache (puede ser
+// miles de lugares con el prefetch de 3km) y escribe a localStorage de forma
+// síncrona — bloquea el hilo principal. Antes se llamaba de inmediato después
+// de cada sync/voto/realtime; con schedulePersist se agrupan varias
+// actualizaciones seguidas en un solo write, sin perder los datos (igual
+// hay un flush periódico de respaldo, ver setInterval(persistCache,...) más abajo).
+let _persistTimer = null;
+const schedulePersist = () => {
+  if (_persistTimer) return;
+  _persistTimer = setTimeout(() => { _persistTimer = null; persistCache(); }, 4000);
+};
 const loadCache = () => {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
@@ -809,7 +820,7 @@ const _loadPlaces = async (lat,lng) => {
     const ids = [];
     all.forEach(p => { placeStore[p.id] = p; ids.push(p.id); });
     tileCache[key] = { ts: Date.now(), placeIds: ids };
-    persistCache();
+    schedulePersist();
     rebuildNearby(lat,lng);
     applySeed(lat,lng);
     buildMapMarkers(nearbyPlaces);
@@ -833,7 +844,19 @@ const rebuildNearby = (lat,lng) => {
   const rLat = center ? center.lat : lat;
   const rLng = center ? center.lng : lng;
   const maxDist = CONFIG.TILE_DEG * 111320 * 1.2;
-  nearbyPlaces = Object.values(placeStore).filter(p => validCoord(p.lat,p.lng) && dist(rLat,rLng,p.lat,p.lng) <= maxDist);
+  // Pre-filtro barato en grados (una resta + valor absoluto) antes de pagar
+  // el seno/coseno de dist() para cada lugar. Con placeStore creciendo
+  // (prefetch de 3km + tiles acumulados) esto puede ser miles de lugares en
+  // cada pan del mapa o tick de GPS; el bounding box descarta la mayoría
+  // sin trigonometría, y solo a los candidatos que sobreviven se les hace
+  // el cálculo exacto en metros.
+  const maxDegLat = maxDist / 111320;
+  const maxDegLng = maxDist / (111320 * Math.cos(rLat * Math.PI / 180) || 1);
+  nearbyPlaces = Object.values(placeStore).filter(p =>
+    validCoord(p.lat,p.lng) &&
+    Math.abs(p.lat - rLat) <= maxDegLat && Math.abs(p.lng - rLng) <= maxDegLng &&
+    dist(rLat,rLng,p.lat,p.lng) <= maxDist
+  );
   // El seed diario sí sigue atado a la posición real del usuario (lat,lng),
   // no al centro del mapa: es sobre "lugares cerca tuyo hoy", no sobre lo
   // que estás mirando en pantalla.
@@ -844,7 +867,7 @@ const syncBackend = async (lat,lng) => {
   const res = await apiGet('sync_places', {lat,lng,radius:300,status_only:1});
   if (!res?.places) return;
   res.places.forEach(bp => { const p = placeStore[bp.id]; if (p) { p.status = bp.status ?? p.status; p.reporters = bp.reporters ?? p.reporters; p.mood = bp.mood ?? p.mood; } });
-  persistCache();
+  schedulePersist();
 };
 
 // Seed diario
@@ -934,6 +957,7 @@ const initMap = (center) => {
       startGpsWatch();
     }
     if (!cercaLoaded) cercaLoadPlaces();
+    startPlacesRealtime();
   });
 
   // Si hay error al cargar el estilo/mapa, ocultar splash
@@ -1490,6 +1514,27 @@ const refreshMarker = id => {
     } else if (moodEl) { moodEl.remove(); }
   }
   m._lastStatus = p.status; m._lastReporters = p.reporters;
+};
+// ── Realtime de ocupación ──
+// startRealtimeSync (supabase-api.js) ya existía pero nunca se llamaba: la
+// app dependía 100% del polling de 15s (syncOccupancy, más abajo). Con esto
+// los cambios de status/reporters llegan por WebSocket apenas alguien vota
+// (submit_vote), sin esperar al próximo tick del intervalo. Actualiza SOLO
+// el marker afectado (refreshMarker) — nunca dispara un rebuild completo de
+// markers/clusters (bounds, sort, DOM diffing), que es la parte cara.
+let _realtimeStarted = false;
+const startPlacesRealtime = () => {
+  if (_realtimeStarted || !BACKEND_READY) return;
+  _realtimeStarted = true;
+  startRealtimeSync(({ id, status, reporters }) => {
+    const p = placeStore[id];
+    if (!p || (p.status === status && p.reporters === reporters)) return;
+    p.status = status; p.reporters = reporters;
+    refreshMarker(id);
+    schedulePersist();
+    if (document.getElementById('panel-cerca')?.classList.contains('visible')) cercaApplyFilters();
+    if (currentPopupPlace?.id === id) { Object.assign(currentPopupPlace, p); renderPopup(); }
+  });
 };
 const updateUserMarker = (lat,lng) => {
   if (!mlMap || !mlReady || !validCoord(lat,lng)) return;
@@ -2420,21 +2465,29 @@ const syncOccupancy = () => {
     .then(res => {
       if (!res?.places) return;
       let changed = false;
+      // Antes: si CUALQUIER lugar cambiaba, se disparaba buildMapMarkers()
+      // completo (bounds, clustering, sort, diff de DOM sobre hasta 150
+      // markers). Ahora solo se toca el marker que realmente cambió, con
+      // refreshMarker (ya existía, se usaba poco) — muchísimo más barato.
       res.places.forEach(bp => {
         const p = placeStore[bp.id];
-        if (p) { if (p.status !== bp.status || p.reporters !== (bp.reporters??p.reporters)) changed = true;
-          p.status = bp.status ?? p.status; p.reporters = bp.reporters ?? p.reporters; p.mood = bp.mood ?? p.mood; placeStore[p.id] = p; }
+        if (p && (p.status !== bp.status || p.reporters !== (bp.reporters??p.reporters))) {
+          p.status = bp.status ?? p.status; p.reporters = bp.reporters ?? p.reporters; p.mood = bp.mood ?? p.mood; placeStore[p.id] = p;
+          refreshMarker(bp.id);
+          changed = true;
+        }
       });
       if (changed) {
-        persistCache();
-        if (nearbyPlaces.length) buildMapMarkers(nearbyPlaces);
+        schedulePersist();
         if (document.getElementById('panel-cerca').classList.contains('visible')) cercaApplyFilters();
         if (currentPopupPlace) { const upd = placeStore[currentPopupPlace.id]; if (upd) { Object.assign(currentPopupPlace, upd); renderPopup(); } }
       }
     })
     .catch(()=>{});
 };
-const startSync = () => { if (_syncInterval) return; syncOccupancy(); _syncInterval = setInterval(syncOccupancy, 15000); };
+// Intervalo subido de 15s a 60s: ahora es solo red de contención por si el
+// WebSocket de startPlacesRealtime se cae; el camino rápido va por ahí.
+const startSync = () => { if (_syncInterval) return; syncOccupancy(); _syncInterval = setInterval(syncOccupancy, 60000); };
 const stopSync = () => { if (_syncInterval) { clearInterval(_syncInterval); _syncInterval = null; } };
 const maybeStartSync = () => { if (isLoggedIn && !_syncInterval) startSync(); else if (!isLoggedIn && _syncInterval) stopSync(); };
 
