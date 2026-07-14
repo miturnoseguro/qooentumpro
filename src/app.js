@@ -2030,7 +2030,20 @@ const ppHandleSubmit = async () => {
     ppStartCooldownTimer();
     ppRenderBody();
   } else {
+    // submitVote() puede haber aplicado un cooldown NUEVO del lado del
+    // backend (res.cooldown === true → applyCooldown(place.id, secondsUntilNext)
+    // dentro de submitVote), pero eso solo actualiza la variable global
+    // placeCooldowns, no el estado local del popup (pp.cooldownMs). Antes,
+    // acá se llamaba a ppRenderBody() sin refrescar pp.cooldownMs primero:
+    // como pp.cooldownMs seguía en 0 (por eso el botón "Reportar" estaba
+    // habilitado), ppComputed() calculaba onCooldown=false de nuevo y
+    // volvía a mostrar el formulario de voto entero, como si el rechazo
+    // nunca hubiera pasado — en vez del cartel "Ya reportaste, volvé en
+    // X horas". Refrescando acá, el popup muestra el motivo real del
+    // rechazo (cooldown, distancia, etc.) correctamente.
     pp.submitted = false;
+    pp.cooldownMs = getCooldown(place.id);
+    if (pp.cooldownMs > 0) ppStartCooldownTimer();
     ppRenderBody();
   }
   if (ok) setTimeout(ppClose, 900);
