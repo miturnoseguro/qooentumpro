@@ -1454,7 +1454,15 @@ const _buildMarkers = (placesToShow) => {
   );
   const individualRest = [];
   const bubbleClusters = [];
-  if (viewRadiusM <= CONFIG.CLUSTER_DISABLE_RADIUS_M) {
+  // Antes esto solo miraba viewRadiusM (radio real del viewport) contra
+  // CLUSTER_DISABLE_RADIUS_M (100m). El problema: en pantallas grandes (o
+  // con cierto aspect ratio) el viewport a un zoom "alto" puede seguir
+  // cubriendo bastante más de 100m a la redonda, así que zonas densas
+  // seguían agrupándose en una burbuja en vez de mostrar las cards sueltas
+  // — daba la sensación de que "con mucho zoom a veces no aparecen las
+  // cards". Ahora también se corta el agrupamiento a partir de zoom 18
+  // directo, sin depender del tamaño real de pantalla.
+  if (viewRadiusM <= CONFIG.CLUSTER_DISABLE_RADIUS_M || zoom >= 18) {
     individualRest.push(...rest);
   } else {
     const cellGroups = computeClusters(rest, clusterGrid(zoom));
@@ -1841,7 +1849,12 @@ const ppRenderBody = () => {
   const body = document.getElementById('pp-body');
   if (!body) return;
 
-  const notLogHtml = (!isLoggedIn && !onCooldown) ? `
+  // Antes esto (y cooldownHtml, más abajo) exigía "!onCooldown" para
+  // mostrarse: si por lo que sea quedaba un cooldown viejo dando vueltas
+  // (ver fix en doLogout), el mensaje de "iniciá sesión" nunca se mostraba
+  // y el usuario deslogueado veía "ya reportaste" en su lugar. El estado de
+  // sesión manda: sin login, siempre se pide login, nunca se muestra cooldown.
+  const notLogHtml = !isLoggedIn ? `
     <div style="display:flex;align-items:center;gap:10px;background:#F0FDF9;border:1px solid #A8EDD8;border-radius:12px;padding:10px 12px;margin-bottom:12px;">
       <span style="font-size:20px;flex-shrink:0;">🔑</span>
       <div style="flex:1;">
@@ -1875,7 +1888,7 @@ const ppRenderBody = () => {
       <span style="font-size:12px;font-weight:700;color:#007A59;">Estás a ${distTo ?? '?'}m · podés reportar</span>
     </div>` : '';
 
-  const cooldownHtml = onCooldown ? `
+  const cooldownHtml = (isLoggedIn && onCooldown) ? `
     <div style="display:flex;align-items:center;gap:10px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:10px 12px;margin-bottom:10px;">
       <span style="font-size:20px;flex-shrink:0;">⏳</span>
       <div>
@@ -2120,14 +2133,39 @@ const closePopup = () => {
 };
 
 
+// Acepta tanto camelCase como snake_case en la respuesta del backend.
+// Antes esta función solo leía claves camelCase (res.dailyLimitReached,
+// res.currentStreak, etc.); si la función SQL submit_vote devuelve JSON
+// con snake_case (lo más común en Postgres: daily_limit_reached,
+// current_streak, seconds_until_next...), TODAS las condiciones de abajo
+// fallaban en silencio, submitVote() devolvía false, y el popup quedaba
+// "trabado" (no se cerraba, mostraba error) aunque el voto SÍ se hubiera
+// guardado en la base — el usuario solo lo notaba al cerrar el popup a mano.
+const normalizeVoteRes = res => {
+  if (!res || typeof res !== 'object') return res;
+  const pick = (...keys) => keys.map(k => res[k]).find(v => v !== undefined);
+  return {
+    dailyLimitReached: pick('dailyLimitReached', 'daily_limit_reached'),
+    dailyLimit: pick('dailyLimit', 'daily_limit'),
+    resetInSeconds: pick('resetInSeconds', 'reset_in_seconds'),
+    cooldown: pick('cooldown'),
+    secondsUntilNext: pick('secondsUntilNext', 'seconds_until_next'),
+    points: pick('points'),
+    currentStreak: pick('currentStreak', 'current_streak'),
+    longestStreak: pick('longestStreak', 'longest_streak'),
+    streakIncreased: pick('streakIncreased', 'streak_increased'),
+  };
+};
+
 const submitVote = async (place, statusIdx, mood = null) => {
   const pts = VOTE_PTS[statusIdx];
-  const res = await apiPost('vote', {
+  const rawRes = await apiPost('vote', {
     place: { id:place.id, name:place.name, type:place.type, addr:place.addr, lat:place.lat, lng:place.lng, logo:place.logo, rating:place.rating, reviewsN:place.reviewsN, verified:!!place.verified, open:place.open !== false },
     status: statusIdx,
     mood: mood || null,
     email: currentUser?.email,
   });
+  const res = normalizeVoteRes(rawRes);
   if (res?.dailyLimitReached) {
     const hrs = Math.max(1, Math.ceil((res.resetInSeconds || 0) / 3600));
     showToast(`🚫 Llegaste al límite de ${res.dailyLimit || CONFIG.DAILY_REPORT_LIMIT} reportes por día. Volvé a intentar en ~${hrs}h`);
@@ -2170,7 +2208,7 @@ const submitVote = async (place, statusIdx, mood = null) => {
     showToast(`🎉 +${pts} ganados`);
     return true;
   }
-  console.error('[submitVote] respuesta inesperada del backend, no se registró el reporte', res);
+  console.error('[submitVote] respuesta inesperada del backend, no se registró el reporte', { raw: rawRes, normalized: res });
   showToast('⚠️ No se pudo registrar el reporte, probá de nuevo');
   return false;
 };
@@ -2458,7 +2496,13 @@ const toggleUserDropdown = () => {
 };
 const doLogout = () => {
   vibrate(10);
-  isLoggedIn = false; currentUser = null; userPts = 0; userStreak = 0; userLongestStreak = 0; placeCooldowns = {}; followMode = false; updateGpsUI();
+  // placeCooldowns se limpia en memoria Y en localStorage (saveCooldowns()):
+  // antes solo se limpiaba en memoria, así que el cooldown viejo quedaba en
+  // localStorage y volvía a cargarse en el próximo loadCooldowns() (al
+  // reabrir la app) aunque ya no hubiera sesión — y ppRenderBody() prioriza
+  // el mensaje de cooldown sobre el de "iniciá sesión" (ver más abajo),
+  // mostrando "ya reportaste" en vez de pedir login.
+  isLoggedIn = false; currentUser = null; userPts = 0; userStreak = 0; userLongestStreak = 0; placeCooldowns = {}; saveCooldowns(); followMode = false; updateGpsUI();
   signOut();
   document.getElementById('user-chip-wrap').style.display = 'none';
   document.getElementById('login-topbar-btn').style.display = 'flex';
