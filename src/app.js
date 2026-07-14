@@ -2200,32 +2200,65 @@ const savePendingReport = (place, statusIdx, mood) => {
   } catch (e) {}
 };
 
-const takePendingReport = () => {
+// peekPendingReport: LEE sin borrar. Antes (takePendingReport) borraba de
+// localStorage apenas se leía, sin importar si submitVote() después fallaba
+// o tiraba excepción — si eso pasaba, el reporte ya estaba borrado y se
+// perdía para siempre, sin ninguna forma de reintentarlo. Ahora el borrado
+// solo pasa en clearPendingReport(), y resumePendingReport() lo llama
+// únicamente cuando submitVote() confirmó éxito.
+const peekPendingReport = () => {
   try {
     const raw = localStorage.getItem(PENDING_REPORT_KEY);
     if (!raw) return null;
-    localStorage.removeItem(PENDING_REPORT_KEY);
     const parsed = JSON.parse(raw);
-    if (!parsed || (Date.now() - (parsed.ts || 0)) > PENDING_REPORT_MAX_AGE_MS) return null;
+    if (!parsed || (Date.now() - (parsed.ts || 0)) > PENDING_REPORT_MAX_AGE_MS) {
+      // Vencido: este sí lo limpiamos, ya no tiene sentido reintentarlo.
+      localStorage.removeItem(PENDING_REPORT_KEY);
+      return null;
+    }
     return parsed;
   } catch (e) { return null; }
 };
+const clearPendingReport = () => { try { localStorage.removeItem(PENDING_REPORT_KEY); } catch (e) {} };
 
-// Se llama una vez que hydrateFromAuthUser confirma la sesión nueva. Si
-// había una selección guardada, la manda al backend sin pedirle nada más
-// al usuario, y si el popup de ese lugar sigue abierto lo refresca para
-// mostrar "¡Reporte enviado!" igual que un envío manual.
+// Evita que dos llamadas simultáneas (ej. 'focus' y 'visibilitychange'
+// disparando casi juntos) intenten reenviar el mismo pendiente dos veces.
+let _resumingPendingReport = false;
+
+// Se llama una vez que hydrateFromAuthUser confirma la sesión nueva, y
+// también cada vez que la app vuelve a foco/visibilidad mientras ya hay
+// sesión (ver retryPendingReportOnResume) — por si el intento anterior
+// falló por una falla pasajera de red/backend. Si había una selección
+// guardada, la manda al backend sin pedirle nada más al usuario, y si el
+// popup de ese lugar sigue abierto lo refresca para mostrar "¡Reporte
+// enviado!" igual que un envío manual.
 const resumePendingReport = async () => {
-  const pending = takePendingReport();
+  if (_resumingPendingReport) return;
+  const pending = peekPendingReport();
   if (!pending) return;
+  _resumingPendingReport = true;
   const { place, statusIdx, mood } = pending;
   let ok = false;
   try {
     ok = await submitVote(place, statusIdx, mood);
   } catch (e) {
     console.error('[resumePendingReport] submitVote falló', e);
+  } finally {
+    _resumingPendingReport = false;
   }
-  if (!ok) { showToast('⚠️ No se pudo guardar el reporte que habías dejado, probá de nuevo'); return; }
+  if (!ok) {
+    // OJO: NO se borra de localStorage. Si submitVote() falló por algo
+    // pasajero (red, backend), el reporte queda guardado para el próximo
+    // intento (ver retryPendingReportOnResume) en vez de perderse. Si en
+    // cambio falló por una razón "definitiva" (cooldown, límite diario),
+    // submitVote() ya se encargó de aplicar el cooldown correspondiente,
+    // así que el próximo intento fallará rápido en vez de reintentar sin
+    // sentido (vuelve a fallar por cooldown hasta que este expire, o hasta
+    // que pasen los 30' de PENDING_REPORT_MAX_AGE_MS y se descarte solo).
+    showToast('⚠️ No se pudo guardar el reporte que habías dejado, vamos a reintentar');
+    return;
+  }
+  clearPendingReport();
   applyCooldown(place.id);
   const stored = placeStore[place.id] || place;
   stored.status = statusIdx;
@@ -2633,6 +2666,21 @@ const checkSession = async () => {
   const { data: { session } } = await getSession();
   if (session?.user) await hydrateFromAuthUser(session.user);
 };
+// retryPendingReportOnResume: cubre el caso en que YA estás logueado (el
+// login se completó bien, hydrateFromAuthUser corrió) pero el intento de
+// resumePendingReport() de ese momento falló por algo pasajero (red,
+// backend). Antes, la única llamada a resumePendingReport() colgaba de
+// checkSession(), que arranca con "if (isLoggedIn) return" — una vez
+// logueado, checkSession() ya no vuelve a hacer nada al volver a foco, así
+// que ese reporte guardado se quedaba en localStorage sin que nadie
+// volviera a intentar enviarlo. Esta función es la segunda oportunidad:
+// no le importa si la sesión es "nueva" o no, solo si hay un pendiente sin
+// enviar y ya hay sesión activa para mandarlo.
+const retryPendingReportOnResume = () => {
+  if (!isLoggedIn) return;
+  try { if (!localStorage.getItem(PENDING_REPORT_KEY)) return; } catch (e) { return; }
+  resumePendingReport();
+};
 // restoreSession: chequea si ya hay sesión de Supabase (ej. volviendo del
 // redirect de Google) y se suscribe a cambios futuros de auth.
 const restoreSession = async () => {
@@ -2649,9 +2697,9 @@ const restoreSession = async () => {
   // Re-chequeo al volver a la app: cubre el caso de Google OAuth abriéndose
   // en el navegador del sistema (la app PWA sigue viva de fondo y por sí
   // sola nunca se entera que ya hay sesión nueva).
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkSession(); });
-  window.addEventListener('focus', checkSession);
-  window.addEventListener('pageshow', e => { if (e.persisted) checkSession(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { checkSession(); retryPendingReportOnResume(); } });
+  window.addEventListener('focus', () => { checkSession(); retryPendingReportOnResume(); });
+  window.addEventListener('pageshow', e => { if (e.persisted) { checkSession(); retryPendingReportOnResume(); } });
 };
 const hydrateFromAuthUser = async (authUser) => {
   currentUser = {
