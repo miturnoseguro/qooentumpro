@@ -70,6 +70,18 @@ export const apiPost = async (action, payload = {}) => {
         if (error) throw error;
         return data; // { points, cooldown }
       }
+      case 'vote_anon': {
+        // Reporte sin login y sin puntos: no manda p_email (no hay
+        // usuario que identificar) ni p_mood (el ánimo es parte del
+        // combo "engagement + puntos", no de este camino). El RPC
+        // submit_vote_anon debe actualizar status/reporters del lugar
+        // igual que submit_vote, pero sin tocar profiles/puntos/racha.
+        const { data, error } = await supabase.rpc('submit_vote_anon', {
+          p_place: payload.place, p_status: payload.status,
+        });
+        if (error) throw error;
+        return data;
+      }
       case 'login': {
         // Con Supabase Auth el login real pasa por signInWithGoogle() (ver abajo).
         // Esto queda solo por compatibilidad si todavía usás el flujo GSI manual.
