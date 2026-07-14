@@ -61,6 +61,32 @@ const CONFIG = {
   TILE_CACHE_NAME: 'qooentum-tiles-v1', // debe coincidir con TILE_CACHE_NAME en sw.js
 };
 
+// ============================================================
+// SANITIZACIÓN — SEGURIDAD
+// ------------------------------------------------------------
+// Todo lo que se muestra en pantalla puede venir, en última instancia,
+// de un usuario: nombre/tipo/dirección/logo de un "place" (llegan por
+// submit_vote, que cualquier usuario autenticado puede llamar con
+// cualquier payload — no solo desde la UI), el nombre de perfil de
+// Google (currentUser.name / u.name en el ranking), o el texto que el
+// propio usuario tipeó en el buscador. NINGUNO de esos valores debe
+// insertarse nunca en innerHTML sin pasar por escHtml/escAttr, o un
+// usuario podría inyectar HTML/JS que se ejecuta en el navegador de
+// TODOS los demás (XSS almacenado vía el mapa, la lista "Cerca", el
+// ranking, etc.).
+// ============================================================
+const escHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const escAttr = escHtml;
+// safeUrl: para usar en src/href. Solo deja pasar http(s) — bloquea
+// "javascript:", "data:text/html", etc. que también podrían venir de
+// un campo controlado por el usuario (p.ej. sponsor.logo_url).
+const safeUrl = (u, fallback = '') => {
+  try {
+    const parsed = new URL(String(u ?? ''), window.location.href);
+    return (parsed.protocol === 'https:' || parsed.protocol === 'http:') ? parsed.href : fallback;
+  } catch (e) { return fallback; }
+};
+
 // BACKEND_READY viene ahora de supabase-api.js (importado al tope del archivo)
 const GEOAPIFY_READY = !CONFIG.GEOAPIFY_API_KEY.startsWith('PEGAR_AQUI');
 
@@ -1213,22 +1239,22 @@ const ensurePinnedSponsorEl = () => {
 const renderPinnedSponsorCard = (place) => {
   const el = ensurePinnedSponsorEl();
   const logoInner = place.sponsor?.logo_url
-    ? `<img src="${place.sponsor.logo_url}" style="width:100%;height:100%;object-fit:contain;">`
-    : (place.logo || '🏪');
+    ? `<img src="${escAttr(safeUrl(place.sponsor.logo_url))}" style="width:100%;height:100%;object-fit:contain;">`
+    : escHtml(place.logo || '🏪');
   el.innerHTML = `
     <div style="position:relative;height:76px;background:#111;">
-      ${place.sponsor?.photo_url ? `<img src="${place.sponsor.photo_url}" style="width:100%;height:100%;object-fit:cover;opacity:.55;">` : ''}
+      ${place.sponsor?.photo_url ? `<img src="${escAttr(safeUrl(place.sponsor.photo_url))}" style="width:100%;height:100%;object-fit:cover;opacity:.55;">` : ''}
       <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.8));"></div>
       <div style="position:absolute;top:8px;left:8px;background:${SPONSOR_BLACK_ACCENT};color:#0A0A0C;font-size:9px;font-weight:900;letter-spacing:.6px;padding:2px 8px;border-radius:20px;">BLACK</div>
       <div style="position:absolute;bottom:8px;left:10px;right:10px;display:flex;align-items:center;gap:8px;">
         <div style="width:32px;height:32px;border-radius:9px;background:#151517;border:1px solid rgba(212,175,55,.4);display:flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden;flex-shrink:0;">${logoInner}</div>
         <div style="min-width:0;">
-          <div style="font-size:12.5px;font-weight:800;color:#F5F0E6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${place.name}</div>
-          <div style="font-size:10px;color:#C9C2B4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${place.type||''}</div>
+          <div style="font-size:12.5px;font-weight:800;color:#F5F0E6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(place.name)}</div>
+          <div style="font-size:10px;color:#C9C2B4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(place.type||'')}</div>
         </div>
       </div>
     </div>
-    ${place.sponsor?.promo ? `<div style="padding:8px 10px;font-size:11px;font-weight:700;color:${SPONSOR_BLACK_ACCENT};">🎁 ${place.sponsor.promo}</div>` : ''}
+    ${place.sponsor?.promo ? `<div style="padding:8px 10px;font-size:11px;font-weight:700;color:${SPONSOR_BLACK_ACCENT};">🎁 ${escHtml(place.sponsor.promo)}</div>` : ''}
   `;
   el.onclick = () => openPopup(place);
   el.style.pointerEvents = 'auto';
@@ -1573,7 +1599,7 @@ const computeClusters = (places, gridDeg) => {
 };
 const makeMarker = p => {
   const s = getStatus(p);
-  const logo = (p.sponsor?.logo_url) ? `<img src="${p.sponsor.logo_url}" alt="${p.name}">` : (p.logo || '🏪');
+  const logo = (p.sponsor?.logo_url) ? `<img src="${escAttr(safeUrl(p.sponsor.logo_url))}" alt="${escAttr(p.name)}">` : escHtml(p.logo || '🏪');
   const ver = p.verified ? `<div class="fc-card-verified">✓</div>` : '';
   const isPremium = p.sponsor?.tier === 'premium';
   const isBlack = p.sponsor?.tier === 'black';
@@ -1590,7 +1616,7 @@ const makeMarker = p => {
     <div class="fc-card"${isBlack ? ' style="background:linear-gradient(180deg,#1a1a1d,#0a0a0c);border-color:rgba(212,175,55,.45);"' : ''}>
       <div class="fc-card-head">
         <div class="fc-card-logo">${logo}${ver}</div>
-        <div class="fc-card-info"><div class="fc-card-name"${isBlack ? ' style="color:#F5F0E6;"' : ''}>${p.name}</div><div class="fc-card-type"${isBlack ? ' style="color:#9A9384;"' : ''}>${p.type}</div></div>
+        <div class="fc-card-info"><div class="fc-card-name"${isBlack ? ' style="color:#F5F0E6;"' : ''}>${escHtml(p.name)}</div><div class="fc-card-type"${isBlack ? ' style="color:#9A9384;"' : ''}>${escHtml(p.type)}</div></div>
         
       </div>
       <div class="fc-card-status" style="background:${s.color}"><div class="s-dot-sm"></div><div class="s-label-sm">${s.label}</div>${p.mood ? `<span class="fc-card-mood" title="Ánimo reportado">${MOOD_EMOJI[p.mood] || ''}</span>` : ''}</div>
@@ -1709,11 +1735,11 @@ const runSearch = async (q, cfg) => {
     let pool = (cfg.pool === 'cerca' && cercaAllPlaces.length) ? cercaAllPlaces : Object.values(placeStore);
 
     const results = pool.filter(p => normTxt(p.name).includes(nq) || normTxt(p.type).includes(nq)).slice(0,8);
-    if (!results.length) { drop.innerHTML = `<div class="search-empty">😕 No encontramos "${q}" cerca.</div>`; return; }
+    if (!results.length) { drop.innerHTML = `<div class="search-empty">😕 No encontramos "${escHtml(q)}" cerca.</div>`; return; }
     drop.innerHTML = results.map((p,i) => {
       const d = userLat != null ? fmtDist(dist(userLat,userLng,p.lat,p.lng)) : '';
       const s = getStatus(p);
-      return `<div class="search-result-item" data-idx="${i}"><div class="search-result-logo">${p.logo||'🏪'}</div><div class="search-result-info"><div class="search-result-name">${p.name}</div><div class="search-result-sub">${p.type}${d ? ' · '+d : ''}</div></div><div class="search-result-status" style="background:${s.color}">${s.label}</div></div>`;
+      return `<div class="search-result-item" data-idx="${i}"><div class="search-result-logo">${escHtml(p.logo||'🏪')}</div><div class="search-result-info"><div class="search-result-name">${escHtml(p.name)}</div><div class="search-result-sub">${escHtml(p.type)}${d ? ' · '+escHtml(d) : ''}</div></div><div class="search-result-status" style="background:${s.color}">${escHtml(s.label)}</div></div>`;
     }).join('');
     drop.querySelectorAll('.search-result-item').forEach((el,i) => {
       el.addEventListener('click', () => {
@@ -1728,7 +1754,7 @@ const runSearch = async (q, cfg) => {
     });
   } catch (e) {
     console.warn('[runSearch]', e);
-    drop.innerHTML = `<div class="search-empty">😕 No encontramos "${q}" cerca.</div>`;
+    drop.innerHTML = `<div class="search-empty">😕 No encontramos "${escHtml(q)}" cerca.</div>`;
   }
 };
 
@@ -1750,8 +1776,6 @@ const getLogoHtml = p => p.sponsor?.logo_url
   ? `<img src="${escAttr(p.sponsor.logo_url)}" alt="${escAttr(p.name)}" style="width:100%;height:100%;object-fit:contain;border-radius:10px;">`
   : escHtml(p.logo || '🏪');
 const canReportPlace = p => userLat!=null && userLng!=null && dist(userLat,userLng,p.lat,p.lng) <= CONFIG.REPORT_RADIUS_M;
-const escHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const escAttr = escHtml;
 
 // ============================================================
 // POPUP DE REPORTE (vanilla JS — antes era un componente React;
@@ -2562,27 +2586,27 @@ const cercaRenderList = () => {
   cercaFiltered.forEach((p,i) => { const cat = p.cat || p.type || 'Otros'; if (!groups[cat]) groups[cat]=[]; groups[cat].push({p,i}); });
   let html = '', idx=0;
   Object.keys(groups).forEach(cat => {
-    html += `<div class="nc-group"><div class="nc-group-title">${cat}</div>`;
+    html += `<div class="nc-group"><div class="nc-group-title">${escHtml(cat)}</div>`;
     groups[cat].forEach(({p}) => {
       const s = getStatus(p);
-      const logo = (p.sponsor?.logo_url) ? `<img src="${p.sponsor.logo_url}" alt="${p.name}">` : (p.logo || '🏪');
+      const logo = (p.sponsor?.logo_url) ? `<img src="${escAttr(safeUrl(p.sponsor.logo_url))}" alt="${escAttr(p.name)}">` : escHtml(p.logo || '🏪');
       const rev = typeof p.reviewsN === 'number' ? p.reviewsN.toLocaleString('es-AR') : p.reviewsN;
       const tier = p.sponsor?.tier;
       const isPremiumTier = tier === 'premium';
       const isBlackTier = tier === 'black';
       const isSponsor = isPremiumTier || isBlackTier;
       const sponsorStyle = isBlackTier ? `--sponsor-color:${SPONSOR_BLACK_ACCENT};` : (isPremiumTier ? `--sponsor-color:${SPONSOR_GOLD};` : '');
-      const sponsorBadge = isSponsor && p.sponsor?.badge_text ? `<span class="nc-sponsor-badge${isBlackTier ? ' nc-sponsor-badge-black' : ''}"${isBlackTier ? ` style="background:linear-gradient(135deg,#0A0A0C,#1c1c20);color:${SPONSOR_BLACK_ACCENT};border:1px solid rgba(212,175,55,.5);"` : ''}>${p.sponsor.badge_text}</span>` : '';
-      html += `<div class="nc-card${isSponsor ? ' is-sponsor' : ''}${isBlackTier ? ' is-sponsor-black' : ''}" data-place-id="${p.id}" style="animation-delay:${Math.min(idx*0.025,0.3)}s;${sponsorStyle}${isBlackTier ? 'background:linear-gradient(180deg,#1a1a1d,#0a0a0c);border-color:rgba(212,175,55,.35);' : ''}">
+      const sponsorBadge = isSponsor && p.sponsor?.badge_text ? `<span class="nc-sponsor-badge${isBlackTier ? ' nc-sponsor-badge-black' : ''}"${isBlackTier ? ` style="background:linear-gradient(135deg,#0A0A0C,#1c1c20);color:${SPONSOR_BLACK_ACCENT};border:1px solid rgba(212,175,55,.5);"` : ''}>${escHtml(p.sponsor.badge_text)}</span>` : '';
+      html += `<div class="nc-card${isSponsor ? ' is-sponsor' : ''}${isBlackTier ? ' is-sponsor-black' : ''}" data-place-id="${escAttr(p.id)}" style="animation-delay:${Math.min(idx*0.025,0.3)}s;${sponsorStyle}${isBlackTier ? 'background:linear-gradient(180deg,#1a1a1d,#0a0a0c);border-color:rgba(212,175,55,.35);' : ''}">
         <div class="nc-logo">${logo}</div>
         <div class="nc-body">
-          <div class="nc-top"><div class="nc-name"${isBlackTier ? ' style="color:#F5F0E6;"' : ''}>${p.name}</div>${sponsorBadge}</div>
-          <div class="nc-meta"${isBlackTier ? ' style="color:#9A9384;"' : ''}><span class="nc-type">${p.type}</span><div class="nc-dot"></div><span class="nc-dist">📍 ${fmtDist(p.dist)}</span>${p.addr ? `<div class="nc-dot"></div><span class="nc-addr">${p.addr}</span>` : ''}</div>
-          <div class="nc-status" style="background:${s.color}"><div class="nc-sdot"></div><span class="nc-slabel">${s.label}</span><span class="nc-ssub">${s.sub}</span></div>
+          <div class="nc-top"><div class="nc-name"${isBlackTier ? ' style="color:#F5F0E6;"' : ''}>${escHtml(p.name)}</div>${sponsorBadge}</div>
+          <div class="nc-meta"${isBlackTier ? ' style="color:#9A9384;"' : ''}><span class="nc-type">${escHtml(p.type)}</span><div class="nc-dot"></div><span class="nc-dist">📍 ${escHtml(fmtDist(p.dist))}</span>${p.addr ? `<div class="nc-dot"></div><span class="nc-addr">${escHtml(p.addr)}</span>` : ''}</div>
+          <div class="nc-status" style="background:${s.color}"><div class="nc-sdot"></div><span class="nc-slabel">${escHtml(s.label)}</span><span class="nc-ssub">${escHtml(s.sub)}</span></div>
         </div>
         <div class="nc-right">
-          <div class="nc-rating"${isBlackTier ? ' style="color:#F5F0E6;"' : ''}><span class="nc-star">★</span>${p.rating}<span class="nc-rn">&nbsp;(${rev})</span></div>
-          <button class="nc-report-btn" data-place-id="${p.id}">Reportar</button>
+          <div class="nc-rating"${isBlackTier ? ' style="color:#F5F0E6;"' : ''}><span class="nc-star">★</span>${escHtml(p.rating)}<span class="nc-rn">&nbsp;(${escHtml(rev)})</span></div>
+          <button class="nc-report-btn" data-place-id="${escAttr(p.id)}">Reportar</button>
         </div>
       </div>`;
       idx++;
@@ -2670,7 +2694,7 @@ const showCheckin = (place) => {
     setTimeout(() => { root.innerHTML = ''; }, 280);
   };
   const confirm = () => { close(); setTimeout(() => openPopup(place), 300); };
-  root.innerHTML = `<div class="checkin-overlay"><div class="checkin-card"><div class="checkin-header"><div class="checkin-header-emoji">${place.logo||'📍'}</div><div class="checkin-header-title">¿Estás en ${place.name} en este momento?</div><div class="checkin-header-sub">${fmtDist(dist(userLat,userLng,place.lat,place.lng))} · podés reportar cuánta gente hay</div></div><div class="checkin-body"><div style="display:flex;flex-direction:column;gap:10px"><button class="checkin-confirm-btn">✅ Sí, estoy aquí — reportar</button><button class="checkin-skip-main"><span style="font-size:16px;opacity:.65">🗺️</span>No, solo ver el mapa</button></div></div></div></div>`;
+  root.innerHTML = `<div class="checkin-overlay"><div class="checkin-card"><div class="checkin-header"><div class="checkin-header-emoji">${escHtml(place.logo||'📍')}</div><div class="checkin-header-title">¿Estás en ${escHtml(place.name)} en este momento?</div><div class="checkin-header-sub">${escHtml(fmtDist(dist(userLat,userLng,place.lat,place.lng)))} · podés reportar cuánta gente hay</div></div><div class="checkin-body"><div style="display:flex;flex-direction:column;gap:10px"><button class="checkin-confirm-btn">✅ Sí, estoy aquí — reportar</button><button class="checkin-skip-main"><span style="font-size:16px;opacity:.65">🗺️</span>No, solo ver el mapa</button></div></div></div></div>`;
   root.querySelector('.checkin-confirm-btn').addEventListener('click', confirm);
   root.querySelector('.checkin-skip-main').addEventListener('click', close);
   root.querySelector('.checkin-overlay').addEventListener('click', e => { if (e.target.classList.contains('checkin-overlay')) close(); });
@@ -2728,7 +2752,7 @@ const applyLoggedUI = () => {
   document.getElementById('user-chip-wrap').style.display = 'flex';
   const avatar = document.getElementById('topbar-avatar');
   if (currentUser.picture) {
-    avatar.innerHTML = `<img src="${currentUser.picture}" alt="${currentUser.name}" referrerpolicy="no-referrer">`;
+    avatar.innerHTML = `<img src="${escAttr(safeUrl(currentUser.picture))}" alt="${escAttr(currentUser.name)}" referrerpolicy="no-referrer">`;
   } else {
     avatar.textContent = (currentUser.name || 'YO').charAt(0).toUpperCase();
   }
@@ -2853,8 +2877,8 @@ const buildRanking = () => {
   list.innerHTML = rankingData.sort((a,b) => b.pts - a.pts).map((u,i) =>
     `<div class="rank-row${u.isMe?' is-me':''}" style="animation-delay:${i*.04}s">
       <div class="rank-pos">${medals[i] || (i+1)}</div>
-      <div class="rank-avatar" style="background:${u.bg};color:${u.fg}">${u.init}</div>
-      <div class="rank-info"><div class="rank-name">${u.name}${u.isMe?' <span style="font-size:11px;color:var(--green);font-weight:800">(vos)</span>':''}</div><div class="rank-sub">${u.reports} reportes este mes</div></div>
+      <div class="rank-avatar" style="background:${u.bg};color:${u.fg}">${escHtml(u.init)}</div>
+      <div class="rank-info"><div class="rank-name">${escHtml(u.name)}${u.isMe?' <span style="font-size:11px;color:var(--green);font-weight:800">(vos)</span>':''}</div><div class="rank-sub">${escHtml(u.reports)} reportes este mes</div></div>
       <div class="rank-pts-val">${u.pts.toLocaleString('es-AR')}</div>
     </div>`
   ).join('');
@@ -2870,22 +2894,35 @@ const buildPrizes = () => {
     const redeemable = pr.place_id != null;
     const cta = outOfStock ? 'Sin stock' : (redeemable && canAfford ? 'Canjear' : 'Muy pronto');
     const ctaCls = outOfStock ? ' prize-cta-off' : (redeemable && canAfford ? ' prize-cta-ready' : '');
+    // Antes: onerror="...textContent:'${pr.emoji}'..." interpolaba pr.emoji
+    // DENTRO de un string de JS embebido en un atributo HTML — si ese campo
+    // tuviera una comilla simple o backslash, rompía el contexto y podía
+    // ejecutar JS arbitrario. Ahora el fallback se engancha después del
+    // render (ver abajo), sin interpolar nada dentro de un atributo JS.
     const media = pr.photo_url
-      ? `<img class="prize-photo" src="${pr.photo_url}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'prize-emoji',textContent:'${pr.emoji || '🎁'}'}))" />`
-      : `<div class="prize-emoji">${pr.emoji || '🎁'}</div>`;
-    const stockNote = pr.stock != null ? ` · ${outOfStock ? 'sin stock' : 'quedan ' + pr.stock}` : '';
-    return `<div class="prize-row${outOfStock ? ' prize-row-off' : ''}" data-id="${pr.id}" style="animation-delay:${idx*.04}s">
+      ? `<img class="prize-photo" src="${escAttr(safeUrl(pr.photo_url))}" alt="" data-fallback-emoji="${escAttr(pr.emoji || '🎁')}" />`
+      : `<div class="prize-emoji">${escHtml(pr.emoji || '🎁')}</div>`;
+    const stockNote = pr.stock != null ? ` · ${outOfStock ? 'sin stock' : 'quedan ' + escHtml(pr.stock)}` : '';
+    return `<div class="prize-row${outOfStock ? ' prize-row-off' : ''}" data-id="${escAttr(pr.id)}" style="animation-delay:${idx*.04}s">
       ${media}
       <div class="prize-body">
-        <div class="prize-name">${pr.name}</div>
-        <div class="prize-cat">${pr.pts.toLocaleString('es-AR')} pts · ${pr.cat} · ${pr.partner}${stockNote}</div>
+        <div class="prize-name">${escHtml(pr.name)}</div>
+        <div class="prize-cat">${escHtml(pr.pts.toLocaleString('es-AR'))} pts · ${escHtml(pr.cat)} · ${escHtml(pr.partner)}${stockNote}</div>
         <div class="pbar-bg"><div class="pbar-fill" style="width:0%" data-w="${pct}"></div></div>
       </div>
-      <div class="prize-cta${ctaCls}">${cta}</div>
+      <div class="prize-cta${ctaCls}">${escHtml(cta)}</div>
     </div>`;
   }).join('');
   requestAnimationFrame(() => {
     document.querySelectorAll('.pbar-fill').forEach(el => { el.style.width = el.dataset.w + '%'; });
+  });
+  document.querySelectorAll('.prize-photo').forEach(img => {
+    img.addEventListener('error', () => {
+      const fb = document.createElement('div');
+      fb.className = 'prize-emoji';
+      fb.textContent = img.dataset.fallbackEmoji || '🎁';
+      img.replaceWith(fb);
+    }, { once: true });
   });
 };
 
@@ -2896,9 +2933,9 @@ const redeemModal = data => {
   modal.innerHTML = `<div class="redeem-card">
     <div class="levelup-burst">🎁</div>
     <div class="redeem-title">¡Canjeado!</div>
-    <div class="redeem-sub">${data.prizeName} · ${data.placeName}</div>
+    <div class="redeem-sub">${escHtml(data.prizeName)} · ${escHtml(data.placeName)}</div>
     <div class="redeem-code-label">MOSTRÁ ESTE CÓDIGO EN EL LOCAL</div>
-    <div class="redeem-code">${data.code}</div>
+    <div class="redeem-code">${escHtml(data.code)}</div>
     <button class="redeem-close" onclick="this.closest('.levelup-modal').remove()">Listo</button>
   </div>`;
   document.body.appendChild(modal);
@@ -2913,8 +2950,8 @@ const loadMyRedemptions = () => {
     if (!pending.length) { box.innerHTML = ''; return; }
     box.innerHTML = `<div class="my-redemptions-title">Tus códigos pendientes</div>` + pending.map(r => `
       <div class="my-redemption-row">
-        <div><div class="my-redemption-name">${r.prize_name}</div><div class="my-redemption-sub">${r.place_name}</div></div>
-        <div class="my-redemption-code">${r.code}</div>
+        <div><div class="my-redemption-name">${escHtml(r.prize_name)}</div><div class="my-redemption-sub">${escHtml(r.place_name)}</div></div>
+        <div class="my-redemption-code">${escHtml(r.code)}</div>
       </div>
     `).join('');
   }).catch(() => {});
