@@ -1937,7 +1937,7 @@ const ppRenderBody = () => {
       </div>
     </div>` : '';
 
-  const submitBtnLabel = isLoggedIn ? '🚀 Guardar reporte y sumar puntos' : '🔑 Ingresar y guardar reporte';
+  const submitBtnLabel = isLoggedIn ? '🚀 Guardar reporte y sumar puntos' : '🔑 Ingresa y tira la posta';
   const submitBtnHtml = (!submitted && nearby && !onCooldown) ? `
     <button id="pp-submit-btn" class="pp-submit-btn${selected != null ? ' ready' : ''}" ${selected == null ? 'disabled' : ''} style="width:100%;background:${selected != null ? `linear-gradient(135deg, ${STATUS_CFG[selected].color}, ${STATUS_CFG[selected].color}cc)` : (T ? T.btnBg : '#E2E8F0')};color:${selected != null ? '#fff' : (T ? T.text3 : '#94A3B8')};border:${selected != null ? '2px solid var(--ink)' : '2px solid transparent'};border-radius:14px;padding:9px;font-size:13px;font-weight:800;cursor:${selected != null ? 'pointer' : 'not-allowed'};display:flex;align-items:center;justify-content:center;gap:6px;font-family:'Baloo 2','Inter',system-ui,sans-serif;box-shadow:${selected != null ? '3px 3px 0 var(--ink)' : 'none'};">${submitBtnLabel}</button>` : '';
 
