@@ -1933,13 +1933,21 @@ const ppRenderBody = () => {
       <span style="font-size:20px;">✅</span>
       <div>
         <p style="margin:0;font-size:13px;font-weight:800;color:#007A59;">¡Reporte enviado!</p>
-        <p style="margin:2px 0 0;font-size:11px;color:#047857;">+${(VOTE_PTS[selected] || 10) + (pp.moodSelected ? MOOD_PTS : 0)} puntos sumados${pp.moodSelected ? ` · ${MOOD_OPTIONS.find(m=>m.key===pp.moodSelected)?.emoji || ''} ánimo reportado` : ''}</p>
+        <p style="margin:2px 0 0;font-size:11px;color:#047857;">${pp.anonSubmit ? 'Gracias por avisar · no se sumaron puntos' : `+${(VOTE_PTS[selected] || 10) + (pp.moodSelected ? MOOD_PTS : 0)} puntos sumados${pp.moodSelected ? ` · ${MOOD_OPTIONS.find(m=>m.key===pp.moodSelected)?.emoji || ''} ánimo reportado` : ''}`}</p>
       </div>
     </div>` : '';
 
-  const submitBtnLabel = isLoggedIn ? '🚀 Guardar reporte y sumar puntos' : '🔑 Ingresa y tira la posta';
+  // Dos botones lado a lado: el principal (suma puntos, pide login si
+  // hace falta) y uno secundario para reportar sin loguearse y sin
+  // sumar puntos (ppHandleSubmitAnon). Ambos requieren haber elegido
+  // un status (selected != null) y respetan nearby/onCooldown igual
+  // que el flujo normal — la única diferencia real es puntos + login.
+  const submitBtnLabel = isLoggedIn ? '🚀 Guardar y sumar puntos' : '🔑 Ingresar y guardar';
   const submitBtnHtml = (!submitted && nearby && !onCooldown) ? `
-    <button id="pp-submit-btn" class="pp-submit-btn${selected != null ? ' ready' : ''}" ${selected == null ? 'disabled' : ''} style="width:100%;background:${selected != null ? `linear-gradient(135deg, ${STATUS_CFG[selected].color}, ${STATUS_CFG[selected].color}cc)` : (T ? T.btnBg : '#E2E8F0')};color:${selected != null ? '#fff' : (T ? T.text3 : '#94A3B8')};border:${selected != null ? '2px solid var(--ink)' : '2px solid transparent'};border-radius:14px;padding:9px;font-size:13px;font-weight:800;cursor:${selected != null ? 'pointer' : 'not-allowed'};display:flex;align-items:center;justify-content:center;gap:6px;font-family:'Baloo 2','Inter',system-ui,sans-serif;box-shadow:${selected != null ? '3px 3px 0 var(--ink)' : 'none'};">${submitBtnLabel}</button>` : '';
+    <div style="display:flex;gap:7px;">
+      <button id="pp-submit-btn" class="pp-submit-btn${selected != null ? ' ready' : ''}" ${selected == null ? 'disabled' : ''} style="flex:1;min-width:0;background:${selected != null ? `linear-gradient(135deg, ${STATUS_CFG[selected].color}, ${STATUS_CFG[selected].color}cc)` : (T ? T.btnBg : '#E2E8F0')};color:${selected != null ? '#fff' : (T ? T.text3 : '#94A3B8')};border:${selected != null ? '2px solid var(--ink)' : '2px solid transparent'};border-radius:14px;padding:9px 6px;font-size:12px;font-weight:800;cursor:${selected != null ? 'pointer' : 'not-allowed'};display:flex;align-items:center;justify-content:center;gap:5px;font-family:'Baloo 2','Inter',system-ui,sans-serif;box-shadow:${selected != null ? '3px 3px 0 var(--ink)' : 'none'};">${submitBtnLabel}</button>
+      <button id="pp-submit-anon-btn" class="pp-submit-anon-btn${selected != null ? ' ready' : ''}" ${selected == null ? 'disabled' : ''} title="Se guarda el estado del lugar pero no suma puntos ni requiere login" style="flex:1;min-width:0;background:${T ? T.btnBg : '#fff'};color:${selected != null ? (T ? T.text : '#1e293b') : (T ? T.text3 : '#94A3B8')};border:2px solid ${selected != null ? stickerColor : 'transparent'};border-radius:14px;padding:9px 6px;font-size:12px;font-weight:800;cursor:${selected != null ? 'pointer' : 'not-allowed'};display:flex;align-items:center;justify-content:center;gap:5px;font-family:'Baloo 2','Inter',system-ui,sans-serif;box-shadow:${selected != null ? `3px 3px 0 ${stickerColor}` : 'none'};">📢 Sin puntos</button>
+    </div>` : '';
 
   const websiteHtml = website ? `
     <a href="${escAttr(website)}" target="_blank" rel="noopener noreferrer" class="pp-website-btn" style="display:block;margin-top:10px;font-size:11.5px;font-weight:800;color:${isBlack ? SPONSOR_BLACK_ACCENT : BRAND_GREEN};text-align:center;text-decoration:none;border:2px solid ${isBlack ? SPONSOR_BLACK_ACCENT : BRAND_GREEN};border-radius:40px;padding:6px 14px;background:${isBlack ? 'rgba(212,175,55,0.08)' : `${BRAND_GREEN}0D`};letter-spacing:.2px;box-shadow:2px 2px 0 ${isBlack ? SPONSOR_BLACK_ACCENT : BRAND_GREEN};">${escHtml(website.replace(/^https?:\/\//,'').replace(/\/$/,''))}</a>` : '';
@@ -1973,6 +1981,8 @@ const ppRenderBody = () => {
   });
   const submitBtn = document.getElementById('pp-submit-btn');
   if (submitBtn) submitBtn.addEventListener('click', ppHandleSubmit);
+  const submitAnonBtn = document.getElementById('pp-submit-anon-btn');
+  if (submitAnonBtn) submitAnonBtn.addEventListener('click', ppHandleSubmitAnon);
 };
 
 const ppHandleVote = idx => {
@@ -2006,6 +2016,7 @@ const ppHandleSubmit = async () => {
     return;
   }
   pp.submitted = true;
+  pp.anonSubmit = false;
   ppRenderBody();
   vibrate(15);
 
@@ -2056,6 +2067,49 @@ const ppHandleSubmit = async () => {
   if (ok) setTimeout(ppClose, 900);
 };
 
+// Gemela de ppHandleSubmit, pero para el botón "Sin puntos": nunca pide
+// login (no hace falta identificar a nadie) y nunca suma puntos/racha —
+// solo actualiza el status/reporters del lugar, que es lo que ven todos
+// en el mapa. Respeta los mismos guardas (selected/nearby/onCooldown)
+// para no permitir spam ni reportes a distancia.
+const ppHandleSubmitAnon = async () => {
+  const { onCooldown, nearby } = ppComputed();
+  if (pp.selected == null || pp.submitted || onCooldown || !nearby) return;
+  const place = pp.place;
+  pp.submitted = true;
+  pp.anonSubmit = true;
+  ppRenderBody();
+  vibrate(15);
+
+  let ok = false;
+  try {
+    ok = await submitVoteAnon(place, pp.selected);
+  } catch (e) {
+    console.error('[ppHandleSubmitAnon] submitVoteAnon falló', e);
+    showToast('⚠️ No se pudo enviar el reporte, probá de nuevo');
+  }
+  if (ok) {
+    applyCooldown(place.id);
+    place.status = pp.selected;
+    place.reporters = (place.reporters || 0) + 1;
+    place.report_ts = Date.now();
+    placeStore[place.id] = place;
+    refreshMarker(place.id);
+    if (currentPopupPlace && currentPopupPlace.id === place.id) Object.assign(currentPopupPlace, place);
+    if (document.getElementById('panel-cerca').classList.contains('visible')) cercaApplyFilters();
+    pp.cooldownMs = getCooldown(place.id);
+    ppStartCooldownTimer();
+    ppRenderBody();
+  } else {
+    pp.submitted = false;
+    pp.anonSubmit = false;
+    pp.cooldownMs = getCooldown(place.id);
+    if (pp.cooldownMs > 0) ppStartCooldownTimer();
+    ppRenderBody();
+  }
+  if (ok) setTimeout(ppClose, 900);
+};
+
 const ppStartCooldownTimer = () => {
   if (pp.cooldownTimer) clearInterval(pp.cooldownTimer);
   if (pp.cooldownMs <= 0) return;
@@ -2079,7 +2133,7 @@ const suppressPopupReopen = (ms = 700) => { _popupSuppressUntil = Date.now() + m
 const openPopup = place => {
   if (Date.now() < _popupSuppressUntil) return;
   currentPopupPlace = place;
-  pp = { place, visible: false, cardVisible: false, selected: null, moodSelected: null, submitted: false, cooldownMs: getCooldown(place.id), imgLoaded: false, cooldownTimer: null };
+  pp = { place, visible: false, cardVisible: false, selected: null, moodSelected: null, submitted: false, anonSubmit: false, cooldownMs: getCooldown(place.id), imgLoaded: false, cooldownTimer: null };
 
   const container = document.getElementById('react-popup-root');
   container.classList.add('active');
@@ -2336,6 +2390,34 @@ const submitVote = async (place, statusIdx, mood = null) => {
   console.error('[submitVote] respuesta inesperada del backend, no se registró el reporte', { raw: rawRes, normalized: res });
   showToast('⚠️ No se pudo registrar el reporte, probá de nuevo');
   return false;
+};
+
+// Variante de submitVote() para el botón "Sin puntos": no manda email
+// (no hace falta login) y no espera "points"/racha en la respuesta —
+// este reporte no otorga nada de eso. El backend (RPC submit_vote_anon,
+// ver supabase-api.js) sigue guardando el status/reporters del lugar,
+// que es el dato que le importa a todo el mundo en el mapa.
+const submitVoteAnon = async (place, statusIdx) => {
+  const rawRes = await apiPost('vote_anon', {
+    place: { id:place.id, name:place.name, type:place.type, addr:place.addr, lat:place.lat, lng:place.lng, logo:place.logo, rating:place.rating, reviewsN:place.reviewsN, verified:!!place.verified, open:place.open !== false },
+    status: statusIdx,
+  });
+  const res = normalizeVoteRes(rawRes);
+  if (res?.dailyLimitReached) {
+    const hrs = Math.max(1, Math.ceil((res.resetInSeconds || 0) / 3600));
+    showToast(`🚫 Llegaste al límite de reportes por día. Volvé a intentar en ~${hrs}h`);
+    return false;
+  }
+  if (res?.cooldown) {
+    applyCooldown(place.id, res.secondsUntilNext);
+    showToast(`⏳ Ya reportaste ${place.name}, volvé a intentar en unas horas`);
+    return false;
+  }
+  // A diferencia de submitVote(), acá no hay "points" que validar como
+  // señal de éxito: este reporte no suma puntos, así que cualquier
+  // respuesta que no sea cooldown/límite diario se toma como OK.
+  showToast('📢 ¡Gracias por avisar!');
+  return true;
 };
 
 // ============================================================
