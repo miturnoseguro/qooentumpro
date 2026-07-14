@@ -1856,12 +1856,11 @@ const ppRenderBody = () => {
   // sesión manda: sin login, siempre se pide login, nunca se muestra cooldown.
   const notLogHtml = !isLoggedIn ? `
     <div style="display:flex;align-items:center;gap:10px;background:#F0FDF9;border:1px solid #A8EDD8;border-radius:12px;padding:10px 12px;margin-bottom:12px;">
-      <span style="font-size:20px;flex-shrink:0;">🔑</span>
+      <span style="font-size:20px;flex-shrink:0;">🎁</span>
       <div style="flex:1;">
-        <p style="margin:0;font-size:13px;font-weight:800;color:#007A59;">Iniciá sesión para reportar</p>
-        <p style="margin:2px 0 0;font-size:12px;color:#047857;">Ganás puntos por cada reporte.</p>
+        <p style="margin:0;font-size:13px;font-weight:800;color:#007A59;">Elegí el estado del lugar</p>
+        <p style="margin:2px 0 0;font-size:12px;color:#047857;">Te pedimos iniciar sesión recién al guardar, para sumarte los puntos.</p>
       </div>
-      <button id="pp-login-btn" style="background:linear-gradient(135deg,#00C48C,#009E72);color:#fff;border:none;border-radius:40px;padding:6px 12px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;font-family:inherit;">Ingresar</button>
     </div>` : '';
 
   const tooFarHtml = (hasGps && !nearby && !onCooldown) ? `
@@ -1882,13 +1881,13 @@ const ppRenderBody = () => {
       </div>
     </div>` : '';
 
-  const nearOkHtml = (isLoggedIn && nearby && !onCooldown) ? `
+  const nearOkHtml = (nearby && !onCooldown) ? `
     <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;padding:2px 10px;background:#E8FBF5;border-radius:10px;border:1px solid #A8EDD8;">
       <span style="font-size:14px;">✅</span>
       <span style="font-size:12px;font-weight:700;color:#007A59;">Estás a ${distTo ?? '?'}m · podés reportar</span>
     </div>` : '';
 
-  const cooldownHtml = (isLoggedIn && onCooldown) ? `
+  const cooldownHtml = onCooldown ? `
     <div style="display:flex;align-items:center;gap:10px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:10px 12px;margin-bottom:10px;">
       <span style="font-size:20px;flex-shrink:0;">⏳</span>
       <div>
@@ -1903,7 +1902,7 @@ const ppRenderBody = () => {
     { idx: 2, label: 'Mucha gente', pts: '+15', color: '#F97316' },
     { idx: 3, label: 'Colapsado', pts: '+20', color: '#EF4444' },
   ];
-  const votesHtml = (!submitted && isLoggedIn && nearby && !onCooldown) ? `
+  const votesHtml = (!submitted && nearby && !onCooldown) ? `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px;">
       ${voteOptions.map(({idx,label,pts,color}) => {
         const isSel = selected === idx;
@@ -1915,7 +1914,7 @@ const ppRenderBody = () => {
       }).join('')}
     </div>` : '';
 
-  const moodHtml = (!submitted && isLoggedIn && nearby && !onCooldown) ? `
+  const moodHtml = (!submitted && nearby && !onCooldown) ? `
     <div style="margin-bottom:10px;">
       <p style="margin:0 0 6px;font-size:11px;font-weight:800;color:${T ? T.text3 : '#64748B'};text-transform:uppercase;letter-spacing:.3px;">¿Cómo se siente el ambiente? <span style="text-transform:none;font-weight:600;opacity:.75;">(opcional)</span></p>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;">
@@ -1938,8 +1937,9 @@ const ppRenderBody = () => {
       </div>
     </div>` : '';
 
-  const submitBtnHtml = (!submitted && isLoggedIn && nearby && !onCooldown) ? `
-    <button id="pp-submit-btn" class="pp-submit-btn${selected != null ? ' ready' : ''}" ${selected == null ? 'disabled' : ''} style="width:100%;background:${selected != null ? `linear-gradient(135deg, ${STATUS_CFG[selected].color}, ${STATUS_CFG[selected].color}cc)` : (T ? T.btnBg : '#E2E8F0')};color:${selected != null ? '#fff' : (T ? T.text3 : '#94A3B8')};border:${selected != null ? '2px solid var(--ink)' : '2px solid transparent'};border-radius:14px;padding:9px;font-size:13px;font-weight:800;cursor:${selected != null ? 'pointer' : 'not-allowed'};display:flex;align-items:center;justify-content:center;gap:6px;font-family:'Baloo 2','Inter',system-ui,sans-serif;box-shadow:${selected != null ? '3px 3px 0 var(--ink)' : 'none'};">🚀 Reportar estado</button>` : '';
+  const submitBtnLabel = isLoggedIn ? '🚀 Guardar reporte y sumar puntos' : '🔑 Ingresar y guardar reporte';
+  const submitBtnHtml = (!submitted && nearby && !onCooldown) ? `
+    <button id="pp-submit-btn" class="pp-submit-btn${selected != null ? ' ready' : ''}" ${selected == null ? 'disabled' : ''} style="width:100%;background:${selected != null ? `linear-gradient(135deg, ${STATUS_CFG[selected].color}, ${STATUS_CFG[selected].color}cc)` : (T ? T.btnBg : '#E2E8F0')};color:${selected != null ? '#fff' : (T ? T.text3 : '#94A3B8')};border:${selected != null ? '2px solid var(--ink)' : '2px solid transparent'};border-radius:14px;padding:9px;font-size:13px;font-weight:800;cursor:${selected != null ? 'pointer' : 'not-allowed'};display:flex;align-items:center;justify-content:center;gap:6px;font-family:'Baloo 2','Inter',system-ui,sans-serif;box-shadow:${selected != null ? '3px 3px 0 var(--ink)' : 'none'};">${submitBtnLabel}</button>` : '';
 
   const websiteHtml = website ? `
     <a href="${escAttr(website)}" target="_blank" rel="noopener noreferrer" class="pp-website-btn" style="display:block;margin-top:10px;font-size:11.5px;font-weight:800;color:${isBlack ? SPONSOR_BLACK_ACCENT : BRAND_GREEN};text-align:center;text-decoration:none;border:2px solid ${isBlack ? SPONSOR_BLACK_ACCENT : BRAND_GREEN};border-radius:40px;padding:6px 14px;background:${isBlack ? 'rgba(212,175,55,0.08)' : `${BRAND_GREEN}0D`};letter-spacing:.2px;box-shadow:2px 2px 0 ${isBlack ? SPONSOR_BLACK_ACCENT : BRAND_GREEN};">${escHtml(website.replace(/^https?:\/\//,'').replace(/\/$/,''))}</a>` : '';
@@ -1978,7 +1978,6 @@ const ppRenderBody = () => {
 const ppHandleVote = idx => {
   const { onCooldown, nearby } = ppComputed();
   if (pp.submitted || onCooldown || !nearby) return;
-  if (!isLoggedIn) { showToastAction('🔑 Iniciá sesión para reportar'); return; }
   vibrate(8);
   pp.selected = idx;
   ppRenderBody();
@@ -1987,7 +1986,6 @@ const ppHandleVote = idx => {
 const ppHandleMood = key => {
   const { onCooldown, nearby } = ppComputed();
   if (pp.submitted || onCooldown || !nearby) return;
-  if (!isLoggedIn) { showToastAction('🔑 Iniciá sesión para reportar'); return; }
   vibrate(8);
   pp.moodSelected = (pp.moodSelected === key) ? null : key; // toggle: es opcional
   ppRenderBody();
@@ -1996,8 +1994,17 @@ const ppHandleMood = key => {
 const ppHandleSubmit = async () => {
   const { onCooldown, nearby } = ppComputed();
   if (pp.selected == null || pp.submitted || onCooldown || !nearby) return;
-  if (!isLoggedIn) { showToastAction('🔑 Iniciá sesión para reportar'); return; }
   const place = pp.place;
+  // Sin login: guardamos la selección ya hecha (place + status + mood) y
+  // recién ahí mandamos a loguearse. submitVote() se dispara solo al
+  // volver, desde resumePendingReport() (ver hydrateFromAuthUser) — el
+  // usuario no tiene que volver a elegir ni tocar "reportar" de nuevo.
+  if (!isLoggedIn) {
+    savePendingReport(place, pp.selected, pp.moodSelected);
+    showToastAction('🔑 Iniciá sesión para guardar tu reporte');
+    doGoogleLogin(document.getElementById('login-topbar-btn'));
+    return;
+  }
   pp.submitted = true;
   ppRenderBody();
   vibrate(15);
@@ -2168,6 +2175,78 @@ const normalizeVoteRes = res => {
     longestStreak: pick('longestStreak', 'longest_streak'),
     streakIncreased: pick('streakIncreased', 'streak_increased'),
   };
+};
+
+// ============================================================
+// REPORTE PENDIENTE (login diferido)
+// ------------------------------------------------------------
+// El usuario puede elegir el estado (y el ánimo opcional) del lugar SIN
+// estar logueado. El login se pide recién al guardar (ppHandleSubmit).
+// Como el login con Google redirige fuera de la app (ver
+// signInWithGoogle en supabase-api.js), la selección en memoria (pp.*)
+// se pierde con el redirect — por eso queda guardada acá antes de
+// mandar a loguearse, y resumePendingReport() la retoma y la manda al
+// backend sola apenas vuelve la sesión (hydrateFromAuthUser).
+// ============================================================
+const PENDING_REPORT_KEY = 'qoo_pending_report';
+const PENDING_REPORT_MAX_AGE_MS = 30 * 60 * 1000; // pasado esto, mejor no auto-enviarlo (puede que ya no esté en el lugar)
+
+const savePendingReport = (place, statusIdx, mood) => {
+  try {
+    localStorage.setItem(PENDING_REPORT_KEY, JSON.stringify({
+      place: { id: place.id, name: place.name, type: place.type, addr: place.addr, lat: place.lat, lng: place.lng, logo: place.logo, rating: place.rating, reviewsN: place.reviewsN, verified: !!place.verified, open: place.open !== false },
+      statusIdx, mood: mood || null, ts: Date.now(),
+    }));
+  } catch (e) {}
+};
+
+const takePendingReport = () => {
+  try {
+    const raw = localStorage.getItem(PENDING_REPORT_KEY);
+    if (!raw) return null;
+    localStorage.removeItem(PENDING_REPORT_KEY);
+    const parsed = JSON.parse(raw);
+    if (!parsed || (Date.now() - (parsed.ts || 0)) > PENDING_REPORT_MAX_AGE_MS) return null;
+    return parsed;
+  } catch (e) { return null; }
+};
+
+// Se llama una vez que hydrateFromAuthUser confirma la sesión nueva. Si
+// había una selección guardada, la manda al backend sin pedirle nada más
+// al usuario, y si el popup de ese lugar sigue abierto lo refresca para
+// mostrar "¡Reporte enviado!" igual que un envío manual.
+const resumePendingReport = async () => {
+  const pending = takePendingReport();
+  if (!pending) return;
+  const { place, statusIdx, mood } = pending;
+  let ok = false;
+  try {
+    ok = await submitVote(place, statusIdx, mood);
+  } catch (e) {
+    console.error('[resumePendingReport] submitVote falló', e);
+  }
+  if (!ok) { showToast('⚠️ No se pudo guardar el reporte que habías dejado, probá de nuevo'); return; }
+  applyCooldown(place.id);
+  const stored = placeStore[place.id] || place;
+  stored.status = statusIdx;
+  stored.reporters = (stored.reporters || 0) + 1;
+  stored.report_ts = Date.now();
+  if (mood) stored.mood = mood;
+  placeStore[place.id] = stored;
+  refreshMarker(place.id);
+  if (currentPopupPlace && currentPopupPlace.id === place.id) {
+    Object.assign(currentPopupPlace, stored);
+    pp.submitted = true;
+    pp.selected = statusIdx;
+    pp.moodSelected = mood;
+    pp.cooldownMs = getCooldown(place.id);
+    ppStartCooldownTimer();
+    ppRenderBody();
+  }
+  const cercaPanel = document.getElementById('panel-cerca');
+  if (cercaPanel && cercaPanel.classList.contains('visible')) cercaApplyFilters();
+  flashPoints();
+  showToast('🎉 ¡Reporte guardado! Gracias por avisar');
 };
 
 const submitVote = async (place, statusIdx, mood = null) => {
@@ -2516,6 +2595,7 @@ const doLogout = () => {
   // el mensaje de cooldown sobre el de "iniciá sesión" (ver más abajo),
   // mostrando "ya reportaste" en vez de pedir login.
   isLoggedIn = false; currentUser = null; userPts = 0; userStreak = 0; userLongestStreak = 0; placeCooldowns = {}; saveCooldowns(); followMode = false; updateGpsUI();
+  try { localStorage.removeItem(PENDING_REPORT_KEY); } catch (e) {}
   signOut();
   document.getElementById('user-chip-wrap').style.display = 'none';
   document.getElementById('login-topbar-btn').style.display = 'flex';
@@ -2558,7 +2638,13 @@ const checkSession = async () => {
 const restoreSession = async () => {
   await checkSession();
   onAuthChange(async user => {
-    if (user && !isLoggedIn) { await hydrateFromAuthUser(user); resetLoginBtn(); hideToastAction(); showToast(`👋 ¡Hola, ${(currentUser.name||'').split(' ')[0] || currentUser.email}!`); }
+    if (user && !isLoggedIn) {
+      let hadPending = false;
+      try { hadPending = !!localStorage.getItem(PENDING_REPORT_KEY); } catch (e) {}
+      await hydrateFromAuthUser(user);
+      resetLoginBtn(); hideToastAction();
+      if (!hadPending) showToast(`👋 ¡Hola, ${(currentUser.name||'').split(' ')[0] || currentUser.email}!`);
+    }
   });
   // Re-chequeo al volver a la app: cubre el caso de Google OAuth abriéndose
   // en el navegador del sistema (la app PWA sigue viva de fondo y por sí
@@ -2582,6 +2668,7 @@ const hydrateFromAuthUser = async (authUser) => {
     updateHUD();
   }
   maybeStartSync();
+  await resumePendingReport();
 };
 
 // ============================================================
