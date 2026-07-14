@@ -74,7 +74,7 @@ const STATUS_CFG = [
   { label: 'Poca gente', sub: 'Entrá tranquilo', color: '#00C48C' },
   { label: 'Bastante gente', sub: 'Algo de espera', color: '#F59E0B' },
   { label: 'Mucha gente', sub: 'Fila larga', color: '#F97316' },
-  { label: 'Colapsado', sub: '¡No vengas ahora!', color: '#EF4444' },
+  { label: 'Cerrado', sub: '¡No vengas ahora!', color: '#333' },
 ];
 const NO_REPORT = { label: 'Sin reportes hoy', sub: 'Sé el primero', color: '#94A3B8' };
 const NO_REPORT_SPONSOR = { label: 'Sin reportes hoy', sub: 'Sé el primero', color: '#A39357' };
@@ -1900,7 +1900,7 @@ const ppRenderBody = () => {
     { idx: 0, label: 'Poca gente', pts: '+10', color: '#00C48C' },
     { idx: 1, label: 'Bastante', pts: '+10', color: '#F59E0B' },
     { idx: 2, label: 'Mucha gente', pts: '+15', color: '#F97316' },
-    { idx: 3, label: 'Colapsado', pts: '+20', color: '#EF4444' },
+    { idx: 3, label: 'Cerrado', pts: '+20', color: '#333' },
   ];
   const votesHtml = (!submitted && nearby && !onCooldown) ? `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px;">
