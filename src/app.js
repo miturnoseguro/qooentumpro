@@ -1591,7 +1591,7 @@ const makeMarker = p => {
       <div class="fc-card-head">
         <div class="fc-card-logo">${logo}${ver}</div>
         <div class="fc-card-info"><div class="fc-card-name"${isBlack ? ' style="color:#F5F0E6;"' : ''}>${p.name}</div><div class="fc-card-type"${isBlack ? ' style="color:#9A9384;"' : ''}>${p.type}</div></div>
-        <span class="fc-card-open ${p.open?'open':'closed'}">${p.open?'Abierto':'Cerrado'}</span>
+        
       </div>
       <div class="fc-card-status" style="background:${s.color}"><div class="s-dot-sm"></div><div class="s-label-sm">${s.label}</div>${p.mood ? `<span class="fc-card-mood" title="Ánimo reportado">${MOOD_EMOJI[p.mood] || ''}</span>` : ''}</div>
     </div>
