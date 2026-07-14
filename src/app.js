@@ -2576,7 +2576,7 @@ const cercaRenderList = () => {
       html += `<div class="nc-card${isSponsor ? ' is-sponsor' : ''}${isBlackTier ? ' is-sponsor-black' : ''}" data-place-id="${p.id}" style="animation-delay:${Math.min(idx*0.025,0.3)}s;${sponsorStyle}${isBlackTier ? 'background:linear-gradient(180deg,#1a1a1d,#0a0a0c);border-color:rgba(212,175,55,.35);' : ''}">
         <div class="nc-logo">${logo}</div>
         <div class="nc-body">
-          <div class="nc-top"><div class="nc-name"${isBlackTier ? ' style="color:#F5F0E6;"' : ''}>${p.name}</div>${sponsorBadge}<span class="nc-badge-open ${p.open?'open':'closed'}">${p.open?'Abierto':'Cerrado'}</span></div>
+          <div class="nc-top"><div class="nc-name"${isBlackTier ? ' style="color:#F5F0E6;"' : ''}>${p.name}</div>${sponsorBadge}</div>
           <div class="nc-meta"${isBlackTier ? ' style="color:#9A9384;"' : ''}><span class="nc-type">${p.type}</span><div class="nc-dot"></div><span class="nc-dist">📍 ${fmtDist(p.dist)}</span>${p.addr ? `<div class="nc-dot"></div><span class="nc-addr">${p.addr}</span>` : ''}</div>
           <div class="nc-status" style="background:${s.color}"><div class="nc-sdot"></div><span class="nc-slabel">${s.label}</span><span class="nc-ssub">${s.sub}</span></div>
         </div>
