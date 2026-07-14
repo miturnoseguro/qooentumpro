@@ -1899,8 +1899,8 @@ const ppRenderBody = () => {
   const voteOptions = [
     { idx: 0, label: 'Poca gente', pts: '+10', color: '#00C48C' },
     { idx: 1, label: 'Bastante', pts: '+10', color: '#F59E0B' },
-    { idx: 2, label: 'Mucha gente', pts: '+15', color: '#F97316' },
-    { idx: 3, label: 'Cerrado', pts: '+20', color: '#333' },
+    { idx: 2, label: 'Mucha gente', pts: '+10', color: '#F97316' },
+    { idx: 3, label: 'Cerrado', pts: '+10', color: '#333' },
   ];
   const votesHtml = (!submitted && nearby && !onCooldown) ? `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px;">
