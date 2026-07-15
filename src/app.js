@@ -867,12 +867,22 @@ const loadCooldowns = () => {
 };
 // secondsUntilNext: si vino del backend (respuesta de submit_vote), se usa
 // ese valor exacto; si no, se cae a CONFIG.VOTE_COOLDOWN_MS (8h) como estimación.
-const applyCooldown = (pid, secondsUntilNext = null) => {
+//
+// anon=true guarda/lee el cooldown bajo una clave DISTINTA ("pid::anon") de
+// la del reporte con cuenta ("pid"). Antes usaban la misma clave: reportar
+// sin loguearse dejaba un cooldown que, al iniciar sesión después, se leía
+// como "ya reportaste con tu cuenta" y bloqueaba el botón de puntos sin que
+// el backend hubiera recibido nada de esa cuenta todavía.
+const cooldownKey = (pid, anon) => anon ? `${pid}::anon` : pid;
+const applyCooldown = (pid, secondsUntilNext = null, anon = false) => {
   const ms = secondsUntilNext != null ? secondsUntilNext * 1000 : CONFIG.VOTE_COOLDOWN_MS;
-  placeCooldowns[pid] = new Date(Date.now() + ms);
+  placeCooldowns[cooldownKey(pid, anon)] = new Date(Date.now() + ms);
   saveCooldowns();
 };
-const getCooldown = pid => { const n = placeCooldowns[pid]; return n ? Math.max(0, n.getTime()-Date.now()) : 0; };
+const getCooldown = (pid, anon = false) => {
+  const n = placeCooldowns[cooldownKey(pid, anon)];
+  return n ? Math.max(0, n.getTime()-Date.now()) : 0;
+};
 
 // Carga de lugares
 let _loadTimer = null, _loadPending = null;
@@ -1815,12 +1825,19 @@ const ppComputed = () => {
     btnBg: '#fff', btnBorder: '#E2E8F0', pad: '13px 14px 16px',
     btnText: '#0F172A', btnText3: '#64748B',
   } : null;
-  const onCooldown = pp.cooldownMs > 0 && !pp.submitted;
+  // Dos cooldowns independientes: uno para reportar con cuenta (suma puntos)
+  // y otro para reportar sin loguearse. onCooldown (a secas) representa
+  // "no queda NINGUNA vía disponible" — se usa para las secciones que son
+  // iguales para ambos caminos (elegir status/ánimo, mensajes de distancia/GPS).
+  // Cada botón de envío, en cambio, mira su propio onCooldownAcc/onCooldownAnon.
+  const onCooldownAcc = pp.cooldownMs > 0 && !pp.submitted;
+  const onCooldownAnon = pp.cooldownMsAnon > 0 && !pp.submitted;
+  const onCooldown = onCooldownAcc && onCooldownAnon;
   const nearby = canReportPlace(place);
   const hasGps = userLat != null && userLng != null;
   const distTo = hasGps ? Math.round(dist(userLat, userLng, place.lat, place.lng)) : null;
   const stickerColor = isBlack ? SPONSOR_BLACK_ACCENT : (isPremium ? sponsorColor : 'var(--ink)');
-  return { place, s, sponsor, isPremium, isBlack, sponsorColor, badgeText, promo, website, T, onCooldown, nearby, hasGps, distTo, stickerColor };
+  return { place, s, sponsor, isPremium, isBlack, sponsorColor, badgeText, promo, website, T, onCooldown, onCooldownAcc, onCooldownAnon, nearby, hasGps, distTo, stickerColor };
 };
 
 const ppRenderHeader = () => {
@@ -1868,8 +1885,8 @@ const ppRenderHeader = () => {
 };
 
 const ppRenderBody = () => {
-  const { place, sponsor, isBlack, sponsorColor, promo, website, T, onCooldown, nearby, hasGps, distTo, stickerColor } = ppComputed();
-  const { selected, submitted, cooldownMs } = pp;
+  const { place, sponsor, isBlack, sponsorColor, promo, website, T, onCooldown, onCooldownAcc, onCooldownAnon, nearby, hasGps, distTo, stickerColor } = ppComputed();
+  const { selected, submitted, cooldownMs, cooldownMsAnon } = pp;
   const body = document.getElementById('pp-body');
   if (!body) return;
 
@@ -1916,7 +1933,7 @@ const ppRenderBody = () => {
       <span style="font-size:20px;flex-shrink:0;">⏳</span>
       <div>
         <p style="margin:0;font-size:13px;font-weight:800;color:#92400E;">Ya reportaste ${escHtml(place.name)} hace poco</p>
-        <p style="margin:2px 0 0;font-size:12px;color:#92400E;">Podés volver a reportar en ${fmtCooldown(cooldownMs)}</p>
+        <p style="margin:2px 0 0;font-size:12px;color:#92400E;">Podés volver a reportar en ${fmtCooldown(Math.min(cooldownMs, cooldownMsAnon))}</p>
       </div>
     </div>` : '';
 
@@ -1967,10 +1984,16 @@ const ppRenderBody = () => {
   // un status (selected != null) y respetan nearby/onCooldown igual
   // que el flujo normal — la única diferencia real es puntos + login.
   const submitBtnLabel = isLoggedIn ? '🚀 Guardar y sumar puntos' : 'Reportar +10 puntos';
+  // Cada botón se arma solo si SU camino no está en cooldown. Si reportaste
+  // sin cuenta hace rato, acá desaparece "Reportar sin logueo" pero el de
+  // puntos (isLoggedIn=false → pide login) sigue disponible, y viceversa.
+  const accBtnHtml = !onCooldownAcc ? `
+      <button id="pp-submit-btn" class="pp-submit-btn${selected != null ? ' ready' : ''}" ${selected == null ? 'disabled' : ''} style="flex:1;min-width:0;background:${selected != null ? `linear-gradient(135deg, ${STATUS_CFG[selected].color}, ${STATUS_CFG[selected].color}cc)` : (T ? T.btnBg : '#E2E8F0')};color:${selected != null ? '#fff' : (T ? T.text3 : '#94A3B8')};border:${selected != null ? '2px solid var(--ink)' : '2px solid transparent'};border-radius:14px;padding:9px 6px;font-size:12px;font-weight:800;cursor:${selected != null ? 'pointer' : 'not-allowed'};display:flex;align-items:center;justify-content:center;gap:5px;font-family:'Baloo 2','Inter',system-ui,sans-serif;box-shadow:${selected != null ? '3px 3px 0 var(--ink)' : 'none'};">${submitBtnLabel}</button>` : '';
+  const anonBtnHtml = !onCooldownAnon ? `
+      <button id="pp-submit-anon-btn" class="pp-submit-anon-btn${selected != null ? ' ready' : ''}" ${selected == null ? 'disabled' : ''} title="Se guarda el estado del lugar pero no suma puntos ni requiere login" style="flex:1;min-width:0;background:${T ? T.btnBg : '#fff'};color:${selected != null ? (T ? T.text : '#1e293b') : (T ? T.text3 : '#94A3B8')};border:2px solid ${selected != null ? stickerColor : 'transparent'};border-radius:14px;padding:9px 6px;font-size:12px;font-weight:800;cursor:${selected != null ? 'pointer' : 'not-allowed'};display:flex;align-items:center;justify-content:center;gap:5px;font-family:'Baloo 2','Inter',system-ui,sans-serif;box-shadow:${selected != null ? `3px 3px 0 ${stickerColor}` : 'none'};">Reportar sin logueo</button>` : '';
   const submitBtnHtml = (!submitted && nearby && !onCooldown) ? `
     <div style="display:flex;gap:7px;">
-      <button id="pp-submit-btn" class="pp-submit-btn${selected != null ? ' ready' : ''}" ${selected == null ? 'disabled' : ''} style="flex:1;min-width:0;background:${selected != null ? `linear-gradient(135deg, ${STATUS_CFG[selected].color}, ${STATUS_CFG[selected].color}cc)` : (T ? T.btnBg : '#E2E8F0')};color:${selected != null ? '#fff' : (T ? T.text3 : '#94A3B8')};border:${selected != null ? '2px solid var(--ink)' : '2px solid transparent'};border-radius:14px;padding:9px 6px;font-size:12px;font-weight:800;cursor:${selected != null ? 'pointer' : 'not-allowed'};display:flex;align-items:center;justify-content:center;gap:5px;font-family:'Baloo 2','Inter',system-ui,sans-serif;box-shadow:${selected != null ? '3px 3px 0 var(--ink)' : 'none'};">${submitBtnLabel}</button>
-      <button id="pp-submit-anon-btn" class="pp-submit-anon-btn${selected != null ? ' ready' : ''}" ${selected == null ? 'disabled' : ''} title="Se guarda el estado del lugar pero no suma puntos ni requiere login" style="flex:1;min-width:0;background:${T ? T.btnBg : '#fff'};color:${selected != null ? (T ? T.text : '#1e293b') : (T ? T.text3 : '#94A3B8')};border:2px solid ${selected != null ? stickerColor : 'transparent'};border-radius:14px;padding:9px 6px;font-size:12px;font-weight:800;cursor:${selected != null ? 'pointer' : 'not-allowed'};display:flex;align-items:center;justify-content:center;gap:5px;font-family:'Baloo 2','Inter',system-ui,sans-serif;box-shadow:${selected != null ? `3px 3px 0 ${stickerColor}` : 'none'};">Reportar sin logueo</button>
+      ${accBtnHtml}${anonBtnHtml}
     </div>` : '';
 
   const websiteHtml = website ? `
@@ -2026,8 +2049,8 @@ const ppHandleMood = key => {
 };
 
 const ppHandleSubmit = async () => {
-  const { onCooldown, nearby } = ppComputed();
-  if (pp.selected == null || pp.submitted || onCooldown || !nearby) return;
+  const { onCooldownAcc, nearby } = ppComputed();
+  if (pp.selected == null || pp.submitted || onCooldownAcc || !nearby) return;
   const place = pp.place;
   // Sin login: guardamos la selección ya hecha (place + status + mood) y
   // recién ahí mandamos a loguearse. submitVote() se dispara solo al
@@ -2097,8 +2120,8 @@ const ppHandleSubmit = async () => {
 // en el mapa. Respeta los mismos guardas (selected/nearby/onCooldown)
 // para no permitir spam ni reportes a distancia.
 const ppHandleSubmitAnon = async () => {
-  const { onCooldown, nearby } = ppComputed();
-  if (pp.selected == null || pp.submitted || onCooldown || !nearby) return;
+  const { onCooldownAnon, nearby } = ppComputed();
+  if (pp.selected == null || pp.submitted || onCooldownAnon || !nearby) return;
   const place = pp.place;
   pp.submitted = true;
   pp.anonSubmit = true;
@@ -2113,7 +2136,7 @@ const ppHandleSubmitAnon = async () => {
     showToast('⚠️ No se pudo enviar el reporte, probá de nuevo');
   }
   if (ok) {
-    applyCooldown(place.id);
+    applyCooldown(place.id, null, true);
     place.status = pp.selected;
     place.reporters = (place.reporters || 0) + 1;
     place.report_ts = Date.now();
@@ -2121,14 +2144,14 @@ const ppHandleSubmitAnon = async () => {
     refreshMarker(place.id);
     if (currentPopupPlace && currentPopupPlace.id === place.id) Object.assign(currentPopupPlace, place);
     if (document.getElementById('panel-cerca').classList.contains('visible')) cercaApplyFilters();
-    pp.cooldownMs = getCooldown(place.id);
+    pp.cooldownMsAnon = getCooldown(place.id, true);
     ppStartCooldownTimer();
     ppRenderBody();
   } else {
     pp.submitted = false;
     pp.anonSubmit = false;
-    pp.cooldownMs = getCooldown(place.id);
-    if (pp.cooldownMs > 0) ppStartCooldownTimer();
+    pp.cooldownMsAnon = getCooldown(place.id, true);
+    if (pp.cooldownMsAnon > 0) ppStartCooldownTimer();
     ppRenderBody();
   }
   if (ok) setTimeout(ppClose, 900);
@@ -2136,12 +2159,13 @@ const ppHandleSubmitAnon = async () => {
 
 const ppStartCooldownTimer = () => {
   if (pp.cooldownTimer) clearInterval(pp.cooldownTimer);
-  if (pp.cooldownMs <= 0) return;
+  if (pp.cooldownMs <= 0 && pp.cooldownMsAnon <= 0) return;
   pp.cooldownTimer = setInterval(() => {
     if (!pp) return;
-    pp.cooldownMs = Math.max(0, pp.cooldownMs - 1000);
+    if (pp.cooldownMs > 0) pp.cooldownMs = Math.max(0, pp.cooldownMs - 1000);
+    if (pp.cooldownMsAnon > 0) pp.cooldownMsAnon = Math.max(0, pp.cooldownMsAnon - 1000);
     ppRenderBody();
-    if (pp.cooldownMs <= 0) { clearInterval(pp.cooldownTimer); pp.cooldownTimer = null; }
+    if (pp.cooldownMs <= 0 && pp.cooldownMsAnon <= 0) { clearInterval(pp.cooldownTimer); pp.cooldownTimer = null; }
   }, 1000);
 };
 
@@ -2157,7 +2181,7 @@ const suppressPopupReopen = (ms = 700) => { _popupSuppressUntil = Date.now() + m
 const openPopup = place => {
   if (Date.now() < _popupSuppressUntil) return;
   currentPopupPlace = place;
-  pp = { place, visible: false, cardVisible: false, selected: null, moodSelected: null, submitted: false, anonSubmit: false, cooldownMs: getCooldown(place.id), imgLoaded: false, cooldownTimer: null };
+  pp = { place, visible: false, cardVisible: false, selected: null, moodSelected: null, submitted: false, anonSubmit: false, cooldownMs: getCooldown(place.id), cooldownMsAnon: getCooldown(place.id, true), imgLoaded: false, cooldownTimer: null };
 
   const container = document.getElementById('react-popup-root');
   container.classList.add('active');
@@ -2433,7 +2457,7 @@ const submitVoteAnon = async (place, statusIdx) => {
     return false;
   }
   if (res?.cooldown) {
-    applyCooldown(place.id, res.secondsUntilNext);
+    applyCooldown(place.id, res.secondsUntilNext, true);
     showToast(`⏳ Ya reportaste ${place.name}, volvé a intentar en unas horas`);
     return false;
   }
