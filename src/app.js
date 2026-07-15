@@ -100,7 +100,7 @@ const STATUS_CFG = [
   { label: 'Poca gente', sub: 'Entrá tranquilo', color: '#00C48C' },
   { label: 'Bastante gente', sub: 'Algo de espera', color: '#F59E0B' },
   { label: 'Mucha gente', sub: 'Fila larga', color: '#F97316' },
-  { label: 'Cerrado', sub: '¡No vengas ahora!', color: '#333' },
+  { label: 'Cerrado', sub: '¡No vengas ahora!', color: '#333333' },
 ];
 const NO_REPORT = { label: 'Sin reportes hoy', sub: 'Sé el primero', color: '#94A3B8' };
 const NO_REPORT_SPONSOR = { label: 'Sin reportes hoy', sub: 'Sé el primero', color: '#A39357' };
