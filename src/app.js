@@ -2958,6 +2958,7 @@ const redeemModal = data => {
     <div class="levelup-burst">🎁</div>
     <div class="redeem-title">¡Canjeado!</div>
     <div class="redeem-sub">${escHtml(data.prizeName)} · ${escHtml(data.placeName)}</div>
+    ${data.placeAddress ? `<div class="redeem-addr">📍 ${escHtml(data.placeAddress)}</div>` : ''}
     <div class="redeem-code-label">MOSTRÁ ESTE CÓDIGO EN EL LOCAL</div>
     <div class="redeem-code">${escHtml(data.code)}</div>
     <button class="redeem-close" onclick="this.closest('.levelup-modal').remove()">Listo</button>
