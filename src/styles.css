@@ -855,3 +855,8 @@ html, body { height: 100%; width: 100%; overflow: hidden; background: #fff; colo
 .pp-website-btn:hover { transform: translate(-1px,-1px); }
 
 .pp-place-name { font-family: 'Baloo 2', 'Inter', system-ui, sans-serif; letter-spacing: -.2px; }
+.redeem-addr {
+  font-size: 13px;
+  color: var(--text2);
+  margin-top: 4px;
+}
