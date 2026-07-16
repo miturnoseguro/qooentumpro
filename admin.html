@@ -134,6 +134,9 @@
         <input id="fLng" placeholder="Lng (ej: -58.4180)" />
       </div>
 
+      <label>Dirección</label>
+      <input id="fAddr" placeholder="ej: Av. Congreso 2368" />
+
       <label>Tier</label>
       <select id="fTier">
         <option value="">Sin sponsor (comercio normal)</option>
@@ -434,6 +437,7 @@ function openEditor(place) {
   $('fName').value = place.name || '';
   $('fLat').value = place.lat ?? '';
   $('fLng').value = place.lng ?? '';
+  $('fAddr').value = place.addr ?? '';
 
   const s = place.sponsor || {};
   $('fTier').value = s.tier || '';
@@ -474,7 +478,7 @@ $('btnSave').addEventListener('click', async () => {
     p_name: $('fName').value || null,
     p_type: selected.type || null,
     p_cat: selected.cat || null,
-    p_addr: selected.addr || null,
+    p_addr: $('fAddr').value || null,
     p_lat: $('fLat').value ? parseFloat($('fLat').value) : null,
     p_lng: $('fLng').value ? parseFloat($('fLng').value) : null,
   };
