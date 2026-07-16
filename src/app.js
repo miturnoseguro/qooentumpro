@@ -2964,7 +2964,11 @@ const redeemModal = data => {
   </div>`;
   document.body.appendChild(modal);
 };
-
+.redeem-addr {
+  font-size: 13px;
+  color: var(--text2);
+  margin-top: 4px;
+}
 const loadMyRedemptions = () => {
   const box = document.getElementById('my-redemptions-list');
   if (!box || !BACKEND_READY || !isLoggedIn) return;
