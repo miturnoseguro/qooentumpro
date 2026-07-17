@@ -1958,10 +1958,10 @@ const ppRenderBody = () => {
   const moodHtml = (!submitted && nearby && !onCooldown) ? `
     <div style="margin-bottom:10px;">
       <p style="margin:0 0 6px;font-size:11px;font-weight:800;color:${T ? T.text3 : '#64748B'};text-transform:uppercase;letter-spacing:.3px;">¿Cómo se siente el ambiente? <span style="text-transform:none;font-weight:600;opacity:.75;">(opcional)</span></p>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;align-items: center;">
         ${MOOD_OPTIONS.map(({key,emoji,label}) => {
           const isSel = pp.moodSelected === key;
-          return `<button class="pp-mood-btn" data-mood="${key}" style="border:2px solid ${isSel ? BRAND_GREEN : stickerColor};border-radius:14px;background:${isSel ? BRAND_GREEN : (T ? T.btnBg : '#fff')};padding:8px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:inherit;transform:${isSel ? 'translate(-1px,-1px)' : 'none'};box-shadow:${isSel ? `3px 3px 0 ${BRAND_GREEN}` : `2px 2px 0 ${stickerColor}`};">
+          return `<button class="pp-mood-btn" data-mood="${key}" style="border:2px solid ${isSel ? BRAND_GREEN : stickerColor};border-radius:14px;background:${isSel ? BRAND_GREEN : (T ? T.btnBg : '#fff')};cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:inherit;transform:${isSel ? 'translate(-1px,-1px)' : 'none'};box-shadow:${isSel ? `3px 3px 0 ${BRAND_GREEN}` : `2px 2px 0 ${stickerColor}`};">
             <span style="font-size:20px;line-height:1;">${emoji}</span>
             <span style="font-size:9.5px;font-weight:700;color:${isSel ? '#fff' : (T ? T.btnText : '#000')};">${escHtml(label)}</span>
           </button>`;
