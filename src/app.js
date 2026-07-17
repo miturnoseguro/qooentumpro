@@ -1992,7 +1992,7 @@ const ppRenderBody = () => {
   const anonBtnHtml = !onCooldownAnon ? `
       <button id="pp-submit-anon-btn" class="pp-submit-anon-btn${selected != null ? ' ready' : ''}" ${selected == null ? 'disabled' : ''} title="Se guarda el estado del lugar pero no suma puntos ni requiere login" style="flex:1;min-width:0;background:${T ? T.btnBg : '#fff'};color:${selected != null ? (T ? T.text : '#1e293b') : (T ? T.text3 : '#94A3B8')};border:2px solid ${selected != null ? stickerColor : 'transparent'};border-radius:14px;padding:9px 6px;font-size:12px;font-weight:800;cursor:${selected != null ? 'pointer' : 'not-allowed'};display:flex;align-items:center;justify-content:center;gap:5px;font-family:'Baloo 2','Inter',system-ui,sans-serif;box-shadow:${selected != null ? `3px 3px 0 ${stickerColor}` : 'none'};">Reportar sin logueo</button>` : '';
   const submitBtnHtml = (!submitted && nearby && !onCooldown) ? `
-    <div style="display:flex;gap:7px;">
+    <div style="display:flex;gap:7px;flex-direction: column;">
       ${accBtnHtml}${anonBtnHtml}
     </div>` : '';
 
