@@ -1832,7 +1832,11 @@ const ppComputed = () => {
   // Cada botón de envío, en cambio, mira su propio onCooldownAcc/onCooldownAnon.
   const onCooldownAcc = pp.cooldownMs > 0 && !pp.submitted;
   const onCooldownAnon = pp.cooldownMsAnon > 0 && !pp.submitted;
-  const onCooldown = onCooldownAcc && onCooldownAnon;
+  // Logueado, la única vía real de reportar es la de cuenta (suma puntos):
+  // el cooldown anónimo no debe bloquear el formulario en ese caso. Sin
+  // loguear, en cambio, hay dos vías disponibles y hace falta que AMBAS
+  // estén en cooldown para considerar que "no queda ninguna vía".
+  const onCooldown = isLoggedIn ? onCooldownAcc : (onCooldownAcc && onCooldownAnon);
   const nearby = canReportPlace(place);
   const hasGps = userLat != null && userLng != null;
   const distTo = hasGps ? Math.round(dist(userLat, userLng, place.lat, place.lng)) : null;
@@ -1933,7 +1937,7 @@ const ppRenderBody = () => {
       <span style="font-size:20px;flex-shrink:0;">⏳</span>
       <div>
         <p style="margin:0;font-size:13px;font-weight:800;color:#92400E;">Ya reportaste ${escHtml(place.name)} hace poco</p>
-        <p style="margin:2px 0 0;font-size:12px;color:#92400E;">Podés volver a reportar en ${fmtCooldown(Math.min(cooldownMs, cooldownMsAnon))}</p>
+        <p style="margin:2px 0 0;font-size:12px;color:#92400E;">Podés volver a reportar en ${fmtCooldown(isLoggedIn ? cooldownMs : Math.min(cooldownMs, cooldownMsAnon))}</p>
       </div>
     </div>` : '';
 
@@ -1989,7 +1993,11 @@ const ppRenderBody = () => {
   // puntos (isLoggedIn=false → pide login) sigue disponible, y viceversa.
   const accBtnHtml = !onCooldownAcc ? `
       <button id="pp-submit-btn" class="pp-submit-btn${selected != null ? ' ready' : ''}" ${selected == null ? 'disabled' : ''} style="flex:1;min-width:0;background:${selected != null ? `linear-gradient(135deg, ${STATUS_CFG[selected].color}, ${STATUS_CFG[selected].color}cc)` : (T ? T.btnBg : '#E2E8F0')};color:${selected != null ? '#fff' : (T ? T.text3 : '#94A3B8')};border:${selected != null ? '2px solid var(--ink)' : '2px solid transparent'};border-radius:14px;padding:9px 6px;font-size:12px;font-weight:800;cursor:${selected != null ? 'pointer' : 'not-allowed'};display:flex;align-items:center;justify-content:center;gap:5px;font-family:'Baloo 2','Inter',system-ui,sans-serif;box-shadow:${selected != null ? '3px 3px 0 var(--ink)' : 'none'};">${submitBtnLabel}</button>` : '';
-  const anonBtnHtml = !onCooldownAnon ? `
+  // El botón de reportar sin logueo solo tiene sentido para quien NO tiene
+  // sesión: si ya estás logueado, la vía con puntos ya está disponible y
+  // mostrar esta opción es redundante (y confuso, porque te haría perder
+  // los puntos del reporte sin ningún motivo).
+  const anonBtnHtml = (!isLoggedIn && !onCooldownAnon) ? `
       <button id="pp-submit-anon-btn" class="pp-submit-anon-btn${selected != null ? ' ready' : ''}" ${selected == null ? 'disabled' : ''} title="Se guarda el estado del lugar pero no suma puntos ni requiere login" style="flex:1;min-width:0;background:${T ? T.btnBg : '#fff'};color:${selected != null ? (T ? T.text : '#1e293b') : (T ? T.text3 : '#94A3B8')};border:2px solid ${selected != null ? stickerColor : 'transparent'};border-radius:14px;padding:9px 6px;font-size:12px;font-weight:800;cursor:${selected != null ? 'pointer' : 'not-allowed'};display:flex;align-items:center;justify-content:center;gap:5px;font-family:'Baloo 2','Inter',system-ui,sans-serif;box-shadow:${selected != null ? `3px 3px 0 ${stickerColor}` : 'none'};">Reportar sin logueo</button>` : '';
   const submitBtnHtml = (!submitted && nearby && !onCooldown) ? `
     <div style="display:flex;gap:7px;flex-direction: column;">
@@ -2120,6 +2128,11 @@ const ppHandleSubmit = async () => {
 // en el mapa. Respeta los mismos guardas (selected/nearby/onCooldown)
 // para no permitir spam ni reportes a distancia.
 const ppHandleSubmitAnon = async () => {
+  // Defensa extra: aunque el botón ya no se renderiza estando logueado
+  // (ver anonBtnHtml en ppRenderBody), si por lo que sea este handler se
+  // llegara a disparar con sesión activa, no hacemos nada — logueado, el
+  // único camino válido es ppHandleSubmit (suma puntos).
+  if (isLoggedIn) return;
   const { onCooldownAnon, nearby } = ppComputed();
   if (pp.selected == null || pp.submitted || onCooldownAnon || !nearby) return;
   const place = pp.place;
