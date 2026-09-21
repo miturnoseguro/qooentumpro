@@ -1,1 +1,201 @@
 
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sumá tu comercio — Qooentum Partners</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* Colores de Qooentum: cambialos acá */
+:root{--brand:#25B692;--main:#0F7C74;--main-d:#0B5F59;--ink:#1F2A33;--mut:#5F6E78;--bg:#F5F2EC;--card:#fff;--line:#DDE3E6;--soft:#EAF6F3;--bad:#C0392B;--coin:#FFD86B}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Nunito,system-ui,sans-serif}
+header{background:var(--brand);color:#fff;padding:14px 22px;display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:26px;font-weight:800;letter-spacing:-.02em}.logo i{font-style:normal;opacity:.8}
+.pill{background:#fff;color:var(--ink);border-radius:99px;padding:6px 16px;font-weight:600;font-size:14px}
+.wrap{display:grid;grid-template-columns:minmax(0,640px) 1fr;min-height:calc(100vh - 62px)}
+main{padding:28px 22px 60px;display:flex;justify-content:center;align-items:flex-start}
+#card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:28px;width:100%;box-shadow:0 8px 28px rgba(31,42,51,.07)}
+aside{background:linear-gradient(160deg,var(--brand),var(--main));position:relative;overflow:hidden;color:#fff}
+aside p{position:absolute;left:36px;right:36px;bottom:40px;font-size:26px;font-weight:800;line-height:1.2;margin:0}
+.mk{position:absolute;width:52px;height:52px;border-radius:50%;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;box-shadow:0 0 0 6px rgba(255,255,255,.18)}
+.prog{display:flex;gap:6px;margin-bottom:14px}.prog span{flex:1;height:6px;border-radius:9px;background:var(--line)}.prog .on{background:var(--main)}
+.kick{color:var(--main);font-weight:800;font-size:14px;margin:0}
+h1{font-size:30px;line-height:1.15;margin:4px 0 6px;letter-spacing:-.02em;outline:none}
+.sub{color:var(--mut);margin:0 0 20px}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+.opt{border:2px solid var(--line);border-radius:16px;padding:14px 16px;cursor:pointer;background:#fff}
+.opt b{display:block}.opt span{color:var(--mut);font-size:14px}
+.opt[aria-checked=true]{border-color:var(--main);background:var(--soft)}
+.fld{margin-bottom:14px;flex:1}.fld label,.lbl{display:block;font-weight:800;font-size:14px;margin-bottom:6px}
+input:not([type=checkbox]),select{width:100%;font:inherit;padding:12px 14px;border:1.5px solid var(--line);border-radius:14px;background:#fff;color:var(--ink)}
+.bad input,.bad select{border-color:var(--bad)}.err{color:var(--bad);font-size:13px;margin:4px 0 0}
+.row{display:flex;gap:12px}.row .cc{flex:0 0 110px}
+.up{display:flex;align-items:center;gap:14px;border:2px dashed var(--line);border-radius:16px;padding:14px;margin-bottom:14px}
+.up img,.up .ph{width:56px;height:56px;border-radius:14px;object-fit:cover;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:24px}
+.up div{flex:1;font-size:14px;color:var(--mut)}.up b{color:var(--ink);display:block;font-size:16px}
+.btn{font:800 16px Nunito,sans-serif;border-radius:99px;padding:13px 26px;border:2px solid var(--main);background:var(--main);color:#fff;cursor:pointer}
+.btn:hover{background:var(--main-d)}.btn.alt{background:#fff;color:var(--main)}.btn.alt:hover{background:var(--soft)}
+.btn:focus-visible,.opt:focus-visible,input:focus-visible,select:focus-visible,.seg button:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+.acts{display:flex;gap:10px;margin-top:8px}.acts .btn:last-child{flex:1}
+.note{color:var(--mut);font-size:14px;margin:14px 0 0}
+.seg{display:flex;background:var(--bg);border-radius:99px;padding:4px;margin-bottom:16px}
+.seg button{flex:1;border:0;background:transparent;font:800 15px Nunito,sans-serif;padding:10px;border-radius:99px;color:var(--mut);cursor:pointer}
+.seg button[aria-selected=true]{background:#fff;color:var(--main);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.plan{border:2px solid var(--line);border-radius:20px;padding:18px;margin-bottom:12px;cursor:pointer}
+.plan[aria-checked=true]{border-color:var(--main);background:var(--soft)}
+.plan small{color:var(--main);font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.ph2{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
+.ph2 h2{margin:0;font-size:22px}.ph2 strong{font-size:16px}
+.tag{background:var(--coin);border-radius:99px;padding:2px 10px;font-size:12px;font-weight:800;float:right}
+.plan ul{list-style:none;padding:0;margin:10px 0 0}.plan li{padding-left:26px;position:relative;margin:6px 0;font-size:15px}
+.plan li:before{content:"✓";position:absolute;left:0;color:var(--main);font-weight:800}
+.soon{border:1px solid var(--line);border-radius:99px;padding:0 8px;font-size:11px;font-weight:800;margin-left:6px;text-transform:uppercase}
+.info{background:var(--soft);border:1px solid var(--line);border-radius:16px;padding:12px 16px;font-size:14px;margin-bottom:12px}
+.sum{background:var(--soft);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pay{border:1.5px solid var(--line);border-radius:16px;padding:20px;margin-bottom:14px;min-height:130px;text-align:center;display:flex;flex-direction:column;justify-content:center;gap:10px;align-items:center}
+.chk{display:flex;gap:8px;align-items:center;font-size:14px;margin:-6px 0 14px}
+.ok{text-align:center;padding:20px 0}.ok .big{font-size:52px}
+@media(max-width:900px){.wrap{grid-template-columns:1fr}aside{display:none}.opts{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:no-preference){.opt,.plan{transition:border-color .15s,background .15s}}
+</style>
+</head>
+<body>
+<header><div class="logo">Qooentum<i> •</i></div><div class="pill">Partners</div></header>
+<div class="wrap">
+<main><section id="card" aria-live="polite"></section></main>
+<aside aria-hidden="true">
+<div class="mk" style="top:8%;left:18%">17</div><div class="mk" style="top:18%;left:62%;width:64px;height:64px">35</div>
+<div class="mk" style="top:34%;left:30%">10</div><div class="mk" style="top:46%;left:70%">21</div>
+<div class="mk" style="top:58%;left:14%;width:44px;height:44px">7</div><div class="mk" style="top:30%;left:82%;width:44px;height:44px">9</div>
+<p>Los usuarios ven cuánta gente hay antes de salir. Sumá tu comercio y que te encuentren.</p>
+</aside>
+</div>
+
+<script>
+/* ===== CONFIGURACIÓN: editá estos valores ===== */
+const CONFIG={
+ apiUrl:'',            // URL de tu backend que recibe el alta (POST multipart). Vacío = modo demo (solo consola)
+ demo:true,            // true: muestra botón "Simular pago". Ponelo en false en producción
+ montarPago:null,      // (el, datos, onOk, onError)=>{...}  aquí montás el checkout de tu procesador de pagos (ej. Rebill)
+ iva:{AR:.21,UY:.22}
+};
+// Precios de ejemplo: reemplazalos por los tuyos
+const PLANES={AR:{cur:'$',s:49000,d:129000,doc:'CUIT'},UY:{cur:'$U',s:1500,d:4000,doc:'RUT'}};
+const CATS=['Gastronomía','Café','Bar','Supermercado','Indumentaria','Farmacia','Belleza','Gimnasio','Entretenimiento','Servicios','Otro'];
+const FEAT={
+ g:['1 premio o beneficio activo','Aparecés en el mapa de Qooentum','Ves cuánta gente reporta en tu local'],
+ s:['Publicá todos los premios y descuentos que quieras','Elegís si ofrecés premios 100% gratuitos','Panel con los reportes de afluencia de tu local','Sellos e insignias para tu comunidad|Próximamente','Aparecés en el mapa de Qooentum'],
+ d:['Todo lo incluido en Standard','Posicionamiento prioritario en tu categoría','Pin destacado con la foto de tu marca','3 notificaciones push por mes a 5.000 usuarios de tu zona','Soporte 24/7']
+};
+const NOMBRE={g:'Gratis',s:'Standard',d:'Destacado'};
+
+/* ===== Lógica ===== */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fm=n=>n.toLocaleString('es-AR');
+const S={step:1,tipo:'comercio',fisico:true,pais:'AR',plan:'s',logo:null,logoUrl:'',nombre:'',cat:'',dir:'',web:'',cc:'+54',tel:'',email:'',pass:'',showPass:false,persona:'',doc:'',err:{},payErr:false};
+const total=()=>S.plan==='g'?4:5;
+const fld=(l,n,o='')=>`<div class="fld${S.err[n]?' bad':''}"><label for="${n}">${l}</label><input id="${n}" name="${n}" value="${esc(S[n])}" ${o}>${S.err[n]?`<p class="err" role="alert">${S.err[n]}</p>`:''}</div>`;
+const opt=(k,v,t,d,on)=>`<div class="opt" role="radio" tabindex="0" aria-checked="${on}" data-k="${k}" data-v="${v}"><b>${t}</b><span>${d}</span></div>`;
+const price=k=>{const p=PLANES[S.pais],n=p[k],i=CONFIG.iva[S.pais];return n?`${p.cur}${fm(n)}/mes + IVA (total ${p.cur}${fm(Math.round(n*(1+i)))})`:'Gratis'};
+
+const VIEW={
+1:()=>`<h1>¿Cómo querés usar Qooentum Partners?</h1><p class="sub">Elegí el tipo de cuenta. Después te pedimos solo los datos que correspondan.</p>
+<div class="lbl" id="l1">Elegí una opción</div><div class="opts" role="radiogroup" aria-labelledby="l1">${opt('tipo','comercio','Soy un comercio','Publico premios y beneficios',S.tipo==='comercio')}${opt('tipo','productora','Soy una productora de eventos','Publico eventos y entradas',S.tipo==='productora')}</div>
+<div class="acts"><button class="btn" data-go="1">Continuar</button></div><p class="note">En el próximo paso completás los datos de tu ${S.tipo==='comercio'?'comercio':'productora'}.</p>`,
+2:()=>{const c=S.tipo==='comercio',f=c&&S.fisico;return `<h1>Creá tu ${c?'comercio':'productora'}</h1><p class="sub">${c?'Indicá si tu tienda es física u online y completá los datos.':'Completá los datos de tu productora.'}</p>
+${c?`<div class="lbl" id="l2">¿Tu comercio es físico u online?</div><div class="opts" role="radiogroup" aria-labelledby="l2">${opt('fisico','1','Tienda física','Atiendo en una dirección',S.fisico)}${opt('fisico','0','Sólo online','Vendo únicamente por internet',!S.fisico)}</div>`:''}
+<div class="lbl">Logo</div><div class="up">${S.logoUrl?`<img src="${S.logoUrl}" alt="Logo elegido">`:'<div class="ph" aria-hidden="true">🖼️</div>'}<div><b>Subir imagen</b>Opcional. Imagen cuadrada en PNG o JPG (máx. 2 MB).${S.err.logo?`<p class="err" role="alert">${S.err.logo}</p>`:''}</div><label class="btn alt" style="padding:8px 16px;cursor:pointer;font-size:14px">Elegir<input type="file" id="logo" accept="image/png,image/jpeg" hidden></label></div>
+<div class="row">${fld('Nombre '+(c?'comercial':'de la productora'),'nombre','placeholder="Ej: Café del Parque" autocomplete="organization"')}
+${c?`<div class="fld${S.err.cat?' bad':''}"><label for="cat">Tipo de comercio</label><select id="cat" name="cat"><option value="">Elegí una categoría</option>${CATS.map(x=>`<option${S.cat===x?' selected':''}>${x}</option>`).join('')}</select>${S.err.cat?`<p class="err" role="alert">${S.err.cat}</p>`:''}</div>`:''}</div>
+${c?(f?fld('Dirección principal','dir','placeholder="Av. Santa Fe 3200, Palermo" autocomplete="street-address"'):fld('Sitio web o tienda online','web','type="url" placeholder="https://mitienda.com"')):''}
+<div class="lbl">Teléfono / WhatsApp</div><div class="row"><div class="fld cc"><select name="cc" aria-label="Código de país">${['+54','+598','+55','+56','+595','+1'].map(x=>`<option${S.cc===x?' selected':''}>${x}</option>`).join('')}</select></div>${fld('','tel','type="tel" inputmode="tel" placeholder="11 2345 6789" aria-label="Teléfono" autocomplete="tel-national"')}</div>
+<div class="row">${fld('Email de trabajo','email','type="email" placeholder="ana@comercio.com" autocomplete="email"')}${fld('Contraseña','pass','type="'+(S.showPass?'text':'password')+'" placeholder="Mínimo 8 caracteres" autocomplete="new-password"')}</div>
+<label class="chk"><input type="checkbox" name="showPass" ${S.showPass?'checked':''}> Mostrar contraseña</label>
+<div class="acts"><button class="btn alt" data-back>Volver</button><button class="btn" data-go="1">Continuar</button></div><p class="note">En el próximo paso comparás los planes antes de crear tu cuenta.</p>`},
+3:()=>{const on=k=>S.plan===k;const li=a=>a.map(x=>{const[t,b]=x.split('|');return `<li>${t}${b?`<span class="soon">${b}</span>`:''}</li>`}).join('');
+const card=(k,kick,extra)=>`<div class="plan" role="radio" tabindex="0" aria-checked="${on(k)}" data-k="plan" data-v="${k}"><small>${kick}</small>${extra||''}<div class="ph2"><h2>${NOMBRE[k]}</h2><strong>${price(k)}</strong></div><ul>${li(FEAT[k])}</ul></div>`;
+return `<h1>Elegí cómo querés crecer</h1><p class="sub">Podés empezar con el plan Gratis o elegir un plan pago con más alcance.</p>
+<div class="seg" role="tablist" aria-label="País">${[['AR','Argentina'],['UY','Uruguay']].map(([k,n])=>`<button role="tab" aria-selected="${S.pais===k}" data-k="pais" data-v="${k}">${n}</button>`).join('')}</div>
+<div role="radiogroup" aria-label="Planes">${S.fisico||S.tipo!=='comercio'?card('g','Para empezar'):''}${card('s','Para crecer','<span class="tag">EL MÁS ELEGIDO</span>')}${card('d','Máxima visibilidad')}</div>
+${S.tipo==='comercio'&&!S.fisico?'<div class="info">Las tiendas exclusivamente online solo pueden sumarse con los planes Standard o Destacado y deben ofrecer descuentos aplicables en su tienda.</div>':''}
+<p class="note" style="margin:0 0 14px">Sin permanencia. Los planes pagos se renuevan mensualmente y podés cancelarlos.</p>
+<div class="acts"><button class="btn alt" data-back>Volver</button><button class="btn" data-go="1">Continuar con ${NOMBRE[S.plan]}</button></div>`},
+4:()=>`<h1>Tus datos</h1><p class="sub">Últimos datos para dejar tu cuenta lista.</p>${fld('Nombre y apellido','persona','autocomplete="name" placeholder="Ana Mercado"')}
+<div class="acts"><button class="btn alt" data-back>Volver</button><button class="btn" data-go="1">${S.plan==='g'?'Crear mi cuenta':'Continuar al pago'}</button></div><p class="note">${S.plan==='g'?'Tu cuenta queda en revisión antes de publicarse.':'En el próximo paso activás la suscripción mensual.'}</p>`,
+5:()=>`<h1>Activá tu plan</h1><p class="sub">Completá el pago mensual y enviamos tu ${S.tipo==='comercio'?'comercio':'productora'} a revisión.</p>
+<div class="sum"><div><small class="kick">PLAN ${NOMBRE[S.plan].toUpperCase()}</small><br><span style="color:var(--mut);font-size:14px">Renovación mensual. Sin permanencia.</span></div><strong>${price(S.plan)}</strong></div>
+${fld(PLANES[S.pais].doc,'doc','inputmode="numeric" placeholder="'+(S.pais==='AR'?'20-12345678-9':'12 dígitos')+'"')}
+<div class="pay" id="pay">${S.payErr?'<strong>No pudimos cargar el pago seguro.</strong><span style="color:var(--bad)">Probá de nuevo en unos segundos.</span><button class="btn alt" data-retry>Reintentar</button>':CONFIG.montarPago?'<span>Cargando pago seguro…</span>':CONFIG.demo?'<span>Modo demo: el procesador de pagos todavía no está conectado.</span><button class="btn" data-demo>Simular pago aprobado</button>':'<strong>Pago no disponible.</strong>'}</div>
+<div class="acts"><button class="btn alt" data-back>Volver</button></div><p class="note">🔒 El pago lo procesa un proveedor seguro. Qooentum no guarda los datos de tu tarjeta.</p>`,
+6:()=>`<div class="ok"><div class="big" aria-hidden="true">🎉</div><h1>¡Listo, ${esc(S.persona.split(' ')[0])}!</h1><p class="sub">Recibimos <strong>${esc(S.nombre)}</strong>. Lo revisamos y te avisamos por email a <strong>${esc(S.email)}</strong> cuando esté publicado en Qooentum.</p></div>`
+};
+
+function cuitOk(v){const d=v.replace(/\D/g,'');if(d.length!==11)return false;const w=[5,4,3,2,7,6,5,4,3,2];let s=0;w.forEach((x,i)=>s+=x*+d[i]);let c=11-s%11;c=c===11?0:c===10?9:c;return c===+d[10]}
+function validar(){
+ const e={},s=S.step,c=S.tipo==='comercio';
+ if(s===2){
+  if(S.nombre.trim().length<2)e.nombre='Ingresá el nombre.';
+  if(c&&!S.cat)e.cat='Elegí una categoría.';
+  if(c&&S.fisico&&S.dir.trim().length<5)e.dir='Ingresá la dirección.';
+  if(c&&!S.fisico&&!/^https?:\/\/.+\..+/.test(S.web.trim()))e.web='Ingresá una URL válida (con https://).';
+  if(S.tel.replace(/\D/g,'').length<8)e.tel='Ingresá un teléfono válido.';
+  if(!/^\S+@\S+\.\S+$/.test(S.email.trim()))e.email='Ingresá un email válido.';
+  if(S.pass.length<8)e.pass='Mínimo 8 caracteres.';
+ }
+ if(s===4&&S.persona.trim().split(/\s+/).length<2)e.persona='Ingresá nombre y apellido.';
+ if(s===5){const d=S.doc.replace(/\D/g,'');if(S.pais==='AR'?!cuitOk(S.doc):d.length!==12)e.doc=S.pais==='AR'?'El CUIT no es válido.':'El RUT debe tener 12 dígitos.'}
+ S.err=e;return !Object.keys(e).length;
+}
+async function enviar(pagoOk){
+ const fd=new FormData();
+ const d={tipo:S.tipo,fisico:S.fisico,nombre:S.nombre,categoria:S.cat,direccion:S.dir,web:S.web,telefono:S.cc+S.tel.replace(/\D/g,''),email:S.email,password:S.pass,pais:S.pais,plan:S.plan,persona:S.persona,documento:S.doc,pago_ok:!!pagoOk};
+ Object.entries(d).forEach(([k,v])=>fd.append(k,v));
+ if(S.logo)fd.append('logo',S.logo);
+ if(CONFIG.apiUrl){const r=await fetch(CONFIG.apiUrl,{method:'POST',body:fd});if(!r.ok)throw new Error('api')}
+ else{delete d.password;console.log('Alta (demo):',d)}
+}
+async function finalizar(pagoOk){
+ try{await enviar(pagoOk);S.step=6;draw(true)}catch(e){alert('No pudimos completar el alta. Probá de nuevo en unos minutos.')}
+}
+function pagoMontar(){
+ if(S.step!==5||!CONFIG.montarPago||S.payErr)return;
+ CONFIG.montarPago($('#pay'),{plan:S.plan,pais:S.pais,documento:S.doc,email:S.email},()=>finalizar(true),()=>{S.payErr=true;draw()});
+}
+function draw(f){
+ const s=S.step,t=total();
+ $('#card').innerHTML=(s<6?`<div class="prog" role="progressbar" aria-valuemin="1" aria-valuemax="${t}" aria-valuenow="${s}" aria-label="Progreso">${Array.from({length:t},(_,i)=>`<span class="${i<s?'on':''}"></span>`).join('')}</div><p class="kick">Paso ${s} de ${t}</p>`:'')+VIEW[s]();
+ if(f){const h=$('#card h1');if(h){h.tabIndex=-1;h.focus({preventScroll:true})}window.scrollTo({top:0})}
+ if(s===5&&f)pagoMontar();
+}
+function next(){
+ if(!validar()){draw();const b=$('#card .bad input,#card .bad select');if(b)b.focus();return}
+ if(S.step===3&&S.plan==='g'&&!(S.fisico||S.tipo!=='comercio'))S.plan='s';
+ if(S.step===4&&S.plan==='g'){finalizar(false);return}
+ if(S.step===2&&!S.fisico&&S.tipo==='comercio'&&S.plan==='g')S.plan='s';
+ S.step++;S.payErr=false;draw(true);
+}
+const card=$('#card');
+card.addEventListener('input',e=>{const n=e.target.name;if(n&&e.target.type!=='checkbox'){S[n]=e.target.value;if(S.err[n]){delete S.err[n];const f=e.target.closest('.fld');if(f){f.classList.remove('bad');const p=f.querySelector('.err');if(p)p.remove()}}}});
+card.addEventListener('change',e=>{
+ const t=e.target;
+ if(t.name==='showPass'){S.showPass=t.checked;draw()}
+ if(t.id==='logo'){const f=t.files[0];delete S.err.logo;if(f){if(!/^image\/(png|jpeg)$/.test(f.type))S.err.logo='Usá una imagen PNG o JPG.';else if(f.size>2*1024*1024)S.err.logo='La imagen pesa más de 2 MB.';else{S.logo=f;S.logoUrl=URL.createObjectURL(f)}}draw()}
+});
+card.addEventListener('click',e=>{
+ const t=e.target.closest('[data-k],[data-go],[data-back],[data-retry],[data-demo]');if(!t)return;
+ if(t.dataset.k){let v=t.dataset.v;if(t.dataset.k==='fisico')v=v==='1';S[t.dataset.k]=v;
+  if(t.dataset.k==='fisico'&&!v&&S.plan==='g')S.plan='s';draw()}
+ else if(t.dataset.go)next();
+ else if(t.dataset.back){S.step--;S.err={};draw(true)}
+ else if(t.dataset.retry){S.payErr=false;draw(true)}
+ else if(t.dataset.demo)finalizar(true);
+});
+card.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches('[role=radio]')){e.preventDefault();e.target.click()}});
+draw(false);
+</script>
+</body>
+</html>
